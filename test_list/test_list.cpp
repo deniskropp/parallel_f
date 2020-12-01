@@ -13,37 +13,41 @@ int main()
 
 	auto func = [](auto a)
 	{
-		parallel_f::logInfo("Function %s\n", a);
+		parallel_f::logInfo("Function %s\n", a.c_str());
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-		parallel_f::logInfo("Function %s done.\n", a);
+		parallel_f::logInfo("Function %s done.\n", a.c_str());
 
 		return parallel_f::none;
 	};
 
-	auto task1 = parallel_f::make_task(func, "running task1...");
-	auto task2 = parallel_f::make_task(func, "running task2...");
-	auto task3 = parallel_f::make_task(func, "running task3...");
-	auto task4 = parallel_f::make_task(func, "running task4...");
-	auto task5 = parallel_f::make_task(func, "running task5...");
-	auto task6 = parallel_f::make_task(func, "running task6...");
-	auto task7 = parallel_f::make_task(func, "running task7...");
-	auto task8 = parallel_f::make_task(func, "running task8...");
-	auto task9 = parallel_f::make_task(func, "running task9...");
+
+	std::vector<std::shared_ptr<parallel_f::task_base>> tasks;
+
+	for (int i=0; i<17; i++)
+		tasks.push_back(parallel_f::make_task(func, std::string("running task") + std::to_string(i) + "..."));
 
 
 	parallel_f::task_list tl;
 
-	auto a1_id = tl.append(task1);
-	auto a2_id = tl.append(task2);
-	auto a3_id = tl.append(task3, a1_id, a2_id);
-	auto a4_id = tl.append(task4);
-	auto a5_id = tl.append(task5);
-	auto a6_id = tl.append(task6, a4_id, a5_id);
-	auto a7_id = tl.append(task7, a3_id, a6_id);
-	auto a8_id = tl.append(task8, a7_id);
-	auto a9_id = tl.append(task9, a7_id);
+	auto a1_id = tl.append(tasks[0]);
+	auto a2_id = tl.append(tasks[1]);
+	auto a3_id = tl.append(tasks[2]);
+	auto a4_id = tl.append(tasks[3]);
+	auto a5_id = tl.append(tasks[4], a1_id, a2_id);
+	auto a6_id = tl.append(tasks[5], a2_id, a3_id);
+	auto a7_id = tl.append(tasks[6], a3_id, a4_id);
+	auto a8_id = tl.append(tasks[7], a5_id);
+	auto a9_id = tl.append(tasks[8], a6_id);
+	auto a10_id = tl.append(tasks[9], a7_id);
+	auto a11_id = tl.append(tasks[10], a8_id, a9_id, a10_id);
+	auto a12_id = tl.append(tasks[11], a8_id, a9_id, a10_id);
+	auto a13_id = tl.append(tasks[12], a8_id, a9_id, a10_id);
+	auto a14_id = tl.append(tasks[13], a8_id, a9_id, a10_id);
+	auto a15_id = tl.append(tasks[14], a8_id);
+	auto a16_id = tl.append(tasks[15], a9_id);
+	auto a17_id = tl.append(tasks[16], a10_id);
 
 	tl.finish();
 
