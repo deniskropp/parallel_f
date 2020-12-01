@@ -9,7 +9,6 @@
 
 
 static void test_queue();
-static void test_list();
 static void test_extract_todos(std::string initial_file);
 static void test_nested_tasking();
 static void test_cl_kernel();
@@ -23,9 +22,6 @@ int main()
 	parallel_f::setDebugLevel(0);
 
 	test_queue();
-	parallel_f::stats::instance::get().show_stats();
-
-	test_list();
 	parallel_f::stats::instance::get().show_stats();
 
 //	test_extract_todos("parallel_f.cpp");
@@ -125,48 +121,6 @@ static void test_queue()
 	}
 
 	j.join_all();
-}
-
-
-// parallel_f :: task_list == testing example
-
-static void test_list()
-{
-	auto func = [](auto a)
-	{
-		parallel_f::logInfo("Function %s\n", a);
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-		parallel_f::logInfo("Function %s done.\n", a);
-
-		return parallel_f::none;
-	};
-
-	auto task1 = parallel_f::make_task(func, "running task1...");
-	auto task2 = parallel_f::make_task(func, "running task2...");
-	auto task3 = parallel_f::make_task(func, "running task3...");
-	auto task4 = parallel_f::make_task(func, "running task4...");
-	auto task5 = parallel_f::make_task(func, "running task5...");
-	auto task6 = parallel_f::make_task(func, "running task6...");
-	auto task7 = parallel_f::make_task(func, "running task7...");
-	auto task8 = parallel_f::make_task(func, "running task8...");
-	auto task9 = parallel_f::make_task(func, "running task9...");
-
-
-	parallel_f::task_list tl;
-
-	auto a1_id = tl.append(task1);
-	auto a2_id = tl.append(task2);
-	auto a3_id = tl.append(task3, a1_id, a2_id);
-	auto a4_id = tl.append(task4);
-	auto a5_id = tl.append(task5);
-	auto a6_id = tl.append(task6, a4_id, a5_id);
-	auto a7_id = tl.append(task7, a3_id, a6_id);
-	auto a8_id = tl.append(task8, a7_id);
-	auto a9_id = tl.append(task9, a7_id);
-
-	tl.finish();
 }
 
 
