@@ -75,7 +75,7 @@ static void test_queue()
 	parallel_f::joinables j;
 	parallel_f::task_queue tq;
 
-	{
+	for (int i = 0; i < 3; i++) {
 		// round 1 = initial test with three tasks
 		auto task1 = parallel_f::make_task(func1);
 		auto task2 = parallel_f::make_task(func2, task1->result());
@@ -88,7 +88,7 @@ static void test_queue()
 		j.add(tq.exec(true));
 	}
 
-	{
+	for (int i = 0; i < 3; i++) {
 		// round 2 = initial test with three tasks
 		auto task1 = parallel_f::make_task(func1);
 		auto task2 = parallel_f::make_task(func3, task1->result());
@@ -101,7 +101,7 @@ static void test_queue()
 		j.add(tq.exec(true));
 	}
 
-	{
+	for (int i = 0; i < 3; i++) {
 		auto task1 = parallel_f::make_task(func1);
 		auto task2 = parallel_f::make_task(func2, task1->result());
 		auto task3 = parallel_f::make_task(func3, task2->result());

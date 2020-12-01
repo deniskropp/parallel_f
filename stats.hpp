@@ -143,7 +143,7 @@ public:
 	
 		float total_seconds = total.reset();
 
-		std::cout << "Load all: " << total_load << " (" << total_num << " vthreads), total busy " << (total_busy / total_seconds) * 100.0f << "%" << std::endl;
+		std::cout << "Load all: " << total_load << " (" << total_num << " vthreads), total busy " << (total_busy / total_seconds) * 100.0f << "% (" << total_seconds << " seconds)" << std::endl;
 	}
 };
 
