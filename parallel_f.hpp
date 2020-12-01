@@ -1,5 +1,6 @@
 // === (C) 2020 === parallel_f (tasks, queues, lists in parallel threads)
 // Written by Denis Oliver Kropp <Leichenbegatter@outlook.com>
+
 #pragma once
 
 #include <any>
@@ -16,6 +17,8 @@
 
 #include <stdarg.h>
 #include <windows.h>
+
+#include "stats.hpp"
 
 
 std::string PrintF(const char* fmt, ...)
@@ -203,8 +206,11 @@ private:
 			running(0),
 			shutdown(false)
 		{
-			for (int i = 0; i < 5; i++)
-				threads.push_back(new std::thread([this]() { loop(); }));
+			for (int i = 0; i < 5; i++) {
+				auto stat = stats::instance::get().make_stat(std::to_string(i));
+
+				threads.push_back(new std::thread([this,stat]() { loop(stat); }));
+			}
 		}
 
 		~manager()
@@ -233,22 +239,25 @@ private:
 			return PrintF("%s.%u", name.c_str(), names[name]++);
 		}
 
-		void loop()
+		void loop(std::shared_ptr<stats::stat> stat)
 		{
 			while (!shutdown)
-				once();
+				once(stat);
 		}
 
-		void once( unsigned int timeout_ms = 100 )
+		void once( std::shared_ptr<stats::stat> stat, unsigned int timeout_ms = 100 )
 		{
+			sysclock clock;
 			std::unique_lock<std::mutex> lock(mutex);
 
-			if (queue.empty()) {
+			if (queue.empty())
 				cond.wait_for(lock, std::chrono::milliseconds(timeout_ms));
 
-				if (shutdown || queue.empty())
-					return;
-			}
+			if (stat)
+				stat->report_idle(clock.reset());
+			
+			if (shutdown || queue.empty())
+				return;
 
 			vthread* t = queue.front();
 
@@ -256,7 +265,7 @@ private:
 
 			running++;
 
-			logInfo("running: %d, queue length: %zu\n", running, queue.size());
+			logDebug("running: %d, queue length: %zu\n", running, queue.size());
 
 			lock.unlock();
 
@@ -266,7 +275,10 @@ private:
 
 			running--;
 
-			logInfo("running: %d, queue length: %zu\n", running, queue.size());
+			logDebug("running: %d, queue length: %zu\n", running, queue.size());
+
+			if (stat)
+				stat->report_busy(clock.reset());
 		}
 
 		void schedule(vthread* thread)
@@ -294,7 +306,7 @@ public:
 	{
 		logDebug("vthread::yield()...\n");
 
-		manager::instance().once(10);
+		manager::instance().once(0, 10);
 	}
 
 	static bool is_manager_thread()
@@ -312,7 +324,7 @@ public:
 
 	void start(std::function<void(void)> func)
 	{
-		logInfo("vthread::start('%s')...\n", name.c_str());
+		logDebug("vthread::start('%s')...\n", name.c_str());
 
 		this->func = func;
 
@@ -391,6 +403,24 @@ public:
 	{
 		if (thread)
 			thread->join();
+	}
+};
+
+class joinables
+{
+private:
+	std::list<joinable> list;
+
+public:
+	void add(joinable joinable)
+	{
+		list.push_back(joinable);
+	}
+
+	void join_all()
+	{
+		for (auto j : list)
+			j.join();
 	}
 };
 
@@ -733,6 +763,11 @@ public:
 		nodes[id] = flush_join;
 		
 		return id;
+	}
+
+	size_t length() const
+	{
+		return nodes.size();
 	}
 };
 

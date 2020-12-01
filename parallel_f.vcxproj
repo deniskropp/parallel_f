@@ -152,6 +152,8 @@
   <ItemGroup>
     <ClInclude Include="OCL_Device.h" />
     <ClInclude Include="parallel_f.hpp" />
+    <ClInclude Include="stats.hpp" />
+    <ClInclude Include="task_cl.hpp" />
     <ClInclude Include="Util.h" />
   </ItemGroup>
   <ItemGroup>

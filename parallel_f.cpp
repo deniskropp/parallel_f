@@ -4,6 +4,7 @@
 #include <fstream>
 
 #include "parallel_f.hpp"
+#include "task_cl.hpp"
 
 
 
@@ -21,9 +22,11 @@ int main()
 {
 	parallel_f::setDebugLevel(0);
 
-//	test_queue();
+	test_queue();
+	parallel_f::stats::instance::get().show_stats();
 
-//	test_list();
+	test_list();
+	parallel_f::stats::instance::get().show_stats();
 
 //	test_extract_todos("parallel_f.cpp");
 
@@ -34,6 +37,7 @@ int main()
 //	test_cl2();
 
 	test_objects();
+	parallel_f::stats::instance::get().show_stats();
 }
 
 
@@ -43,65 +47,84 @@ static void test_queue()
 {
 	auto func1 = []() -> std::string
 	{
-		parallel_f::logInfo("First function being called (initial task)\n");
+		parallel_f::logInfo("First function being called\n");
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 		return "Hello World";
 	};
 
 	auto func2 = [](auto msg) -> std::string
 	{
-		parallel_f::logInfo("Second function receiving '%s' from previous task\n", msg.get<std::string>().c_str());
+		parallel_f::logInfo("Second function receiving '%s'\n", msg.get<std::string>().c_str());
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 		return "Good bye";
 	};
 
-	auto func3 = [](auto msg)
+	auto func3 = [](auto msg) -> std::string
 	{
-		parallel_f::logInfo("Third task running with '%s' from second...\n", msg.get<std::string>().c_str());
+		parallel_f::logInfo("Third function receiving '%s'\n", msg.get<std::string>().c_str());
 
-		return 0;
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+		return "End";
 	};
 
-	// round 1 = initial test with three tasks
-	auto task1 = parallel_f::make_task(func1);
-	auto task2 = parallel_f::make_task(func2, task1->result());
-	auto task3 = parallel_f::make_task(func3, task2->result());
-
+	parallel_f::joinables j;
 	parallel_f::task_queue tq;
 
-	tq.push(task1);
-	tq.push(task2);
-	tq.push(task3);
+	{
+		// round 1 = initial test with three tasks
+		auto task1 = parallel_f::make_task(func1);
+		auto task2 = parallel_f::make_task(func2, task1->result());
+		auto task3 = parallel_f::make_task(func3, task2->result());
 
-	tq.exec();
+		tq.push(task1);
+		tq.push(task2);
+		tq.push(task3);
 
+		j.add(tq.exec(true));
+	}
 
-	// round 2 = push (reset) all of our tasks again, different order
-	tq.push(task3);
-	tq.push(task2);
-	tq.push(task1);
+	{
+		// round 2 = initial test with three tasks
+		auto task1 = parallel_f::make_task(func1);
+		auto task2 = parallel_f::make_task(func3, task1->result());
+		auto task3 = parallel_f::make_task(func3, task2->result());
 
-	tq.exec();
+		tq.push(task1);
+		tq.push(task2);
+		tq.push(task3);
 
+		j.add(tq.exec(true));
+	}
 
-	// round 3 = mixture of past and new tasks
-	tq.push(task1);
+	{
+		auto task1 = parallel_f::make_task(func1);
+		auto task2 = parallel_f::make_task(func2, task1->result());
+		auto task3 = parallel_f::make_task(func3, task2->result());
 
-	parallel_f::task_queue queue2;
+		// round 3 = mixture of past and new tasks
+		tq.push(task1);
 
-	queue2.push(task2);
-	queue2.push(task3);
+		parallel_f::task_queue queue2;
 
-	//	tq.push(queue2);	<== like pushing another queue(2) instead of tasks to our first queue
-	auto queue2_task = parallel_f::make_task([&queue2]() {
-		parallel_f::logInfo("Special function running whole queue...\n");
-		return queue2.exec();
-	});
-	tq.push(queue2_task);	// TODO: move these (previous) four lines into task_queue::push(task_queue&)???
+		queue2.push(task2);
+		queue2.push(task3);
 
-	parallel_f::joinable j = tq.exec(true);
-	
-	j.join();
+		//	tq.push(queue2);	<== like pushing another queue(2) instead of tasks to our first queue
+		auto queue2_task = parallel_f::make_task([&queue2]() {
+				parallel_f::logInfo("Special function running whole queue...\n");
+				return queue2.exec();
+			});
+		tq.push(queue2_task);	// TODO: move these (previous) four lines into task_queue::push(task_queue&)???
+
+		j.add(tq.exec(true));
+	}
+
+	j.join_all();
 }
 
 
@@ -111,9 +134,13 @@ static void test_list()
 {
 	auto func = [](auto a)
 	{
-		parallel_f::logInfo( "Function %s\n", a );
+		parallel_f::logInfo("Function %s\n", a);
 
-		return 0;
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+		parallel_f::logInfo("Function %s done.\n", a);
+
+		return parallel_f::none;
 	};
 
 	auto task1 = parallel_f::make_task(func, "running task1...");
@@ -121,15 +148,23 @@ static void test_list()
 	auto task3 = parallel_f::make_task(func, "running task3...");
 	auto task4 = parallel_f::make_task(func, "running task4...");
 	auto task5 = parallel_f::make_task(func, "running task5...");
+	auto task6 = parallel_f::make_task(func, "running task6...");
+	auto task7 = parallel_f::make_task(func, "running task7...");
+	auto task8 = parallel_f::make_task(func, "running task8...");
+	auto task9 = parallel_f::make_task(func, "running task9...");
 
 
 	parallel_f::task_list tl;
 
 	auto a1_id = tl.append(task1);
-	auto a2_id = tl.append(task2, a1_id);
-	auto a3_id = tl.append(task3, a1_id);
-	auto a4_id = tl.append(task4, a2_id, a3_id);
-	auto a5_id = tl.append(task5, a4_id);
+	auto a2_id = tl.append(task2);
+	auto a3_id = tl.append(task3, a1_id, a2_id);
+	auto a4_id = tl.append(task4);
+	auto a5_id = tl.append(task5);
+	auto a6_id = tl.append(task6, a4_id, a5_id);
+	auto a7_id = tl.append(task7, a3_id, a6_id);
+	auto a8_id = tl.append(task8, a7_id);
+	auto a9_id = tl.append(task9, a7_id);
 
 	tl.finish();
 }
@@ -238,356 +273,12 @@ static void test_extract_todos(std::string initial_file)
 }
 
 
-// parallel_f :: task_queues == testing nested execution
-
-static void test_nested_tasking()
-{
-	auto main_func = []() {
-		auto sub = parallel_f::make_task([]() {
-				parallel_f::logInfo("sub task calling vthread::yield()...\n");
-				parallel_f::vthread::yield();
-				parallel_f::logInfo("sub task vthread::yield() done.\n");
-
-				return 0;
-			});
-
-		parallel_f::task_queue tq;
-
-		tq.push(sub);
-
-		parallel_f::logInfo("main task running exec() and join()...\n");
-
-		tq.exec(true).join();
-
-		return 0;
-	};
-
-	auto main_task = parallel_f::make_task(main_func);
-
-	parallel_f::task_queue tq;
-
-	tq.push(main_task);
-
-	tq.exec(true).join();
-}
-
-
-
-#define CL_TARGET_OPENCL_VERSION 120
-#include <CL\opencl.h>
-
-#include <OCL_Device.h>
-
-namespace task_cl {
-
-class system
-{
-public:
-	static system& instance()
-	{
-		static system system_instance;
-
-		return system_instance;
-	}
-
-private:
-	OCL_Device* pOCL_Device;
-	std::mutex lock;
-
-public:
-	system()
-	{
-		// Parse arguments
-		// OpenCL arguments: platform and device
-		int iPlatform = 0;// GetArgInt(argc, argv, "p");
-		int iDevice = 0;// GetArgInt(argc, argv, "d");
-
-		parallel_f::logInfo("Initializing OpenCL...\n");
-
-		// Set-up OpenCL Platform
-		pOCL_Device = new OCL_Device(iPlatform, iDevice);
-		pOCL_Device->SetBuildOptions("");
-		pOCL_Device->PrintInfo();
-	}
-
-	~system()
-	{
-		delete pOCL_Device;
-	}
-
-	OCL_Device* getDevice()
-	{
-		return pOCL_Device;
-	}
-
-	std::mutex& getLock()
-	{
-		return lock;
-	}
-};
-
-
-class task_cl_kernel_args
-{
-public:
-	class kernel_arg
-	{
-	public:
-		virtual void kernel_pre_init(OCL_Device* pOCL_Device, int idx) {}
-		virtual void kernel_pre_run(OCL_Device* pOCL_Device, int idx) {}
-		virtual void kernel_exec_init(cl_kernel Kernel, int idx) {}
-		virtual void kernel_post_run(OCL_Device* pOCL_Device, int idx) {}
-		virtual void kernel_post_deinit(OCL_Device* pOCL_Device, int idx) {}
-	};
-
-	template <typename T>
-	class kernel_arg_t : public kernel_arg
-	{
-	public:
-		T arg;
-		
-		kernel_arg_t<T>(T arg) : arg(arg) {}
-
-		virtual void kernel_exec_init(cl_kernel Kernel, int idx)
-		{
-			cl_int err;
-			err = clSetKernelArg(Kernel, idx, sizeof(cl_int), &arg);
-			CHECK_OPENCL_ERROR(err);
-		}
-	};
-
-	class kernel_arg_mem : public kernel_arg
-	{
-	public:
-		size_t size;
-		void* host_in;
-		void* host_out;
-
-		cl_mem mem;
-
-		kernel_arg_mem(size_t size, void* host_in, void* host_out) : size(size), host_in(host_in), host_out(host_out)
-		{
-			memset(&mem, 0, sizeof(mem));
-		}
-
-		virtual void kernel_pre_init(OCL_Device* pOCL_Device, int idx)
-		{
-			// Allocate Device Memory
-			mem = pOCL_Device->DeviceMalloc(idx, size);
-		}
-
-		virtual void kernel_pre_run(OCL_Device* pOCL_Device, int idx)
-		{
-			if (host_in)
-				pOCL_Device->CopyBufferToDevice(host_in, idx, size);
-		}
-
-		virtual void kernel_exec_init(cl_kernel Kernel, int idx)
-		{
-			cl_int err;
-			err = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &mem);
-			CHECK_OPENCL_ERROR(err);
-		}
-
-		virtual void kernel_post_run(OCL_Device* pOCL_Device, int idx)
-		{
-			if (host_out)
-				pOCL_Device->CopyBufferToHost(host_out, idx, size);
-		}
-
-		virtual void kernel_post_deinit(OCL_Device* pOCL_Device, int idx)
-		{
-			pOCL_Device->DeviceFree(idx);
-		}
-	};
-
-	template <typename T>
-	class kernel_arg_value_t : public kernel_arg
-	{
-	public:
-		parallel_f::task_info::Value value;
-
-		kernel_arg_value_t<T>(parallel_f::task_info::Value value) : value(value) {}
-	};
-
-	class kernel_arg_value_mem : public kernel_arg
-	{
-	public:
-		parallel_f::task_info::Value value;
-
-		kernel_arg_value_mem(parallel_f::task_info::Value value) : value(value) {}
-	};
-
-public:
-	std::vector<std::shared_ptr<kernel_arg>> args;
-
-	template <typename... kargs>
-	task_cl_kernel_args(kargs*... args)
-	{
-		(this->args.push_back(std::shared_ptr<kernel_arg>(args)), ...);
-	}
-};
-
-
-class task_cl_kernel_pre : public parallel_f::task_base
-{
-public:
-	static auto make_task(task_cl_kernel_args& args)
-	{
-		return std::make_shared<task_cl_kernel_pre>(args);
-	}
-
-public:
-	task_cl_kernel_args& args;
-
-	task_cl_kernel_pre(task_cl_kernel_args& args) : args(args)
-	{
-		std::unique_lock<std::mutex> lock(system::instance().getLock());
-
-		OCL_Device* pOCL_Device = system::instance().getDevice();
-
-		for (int i=0; i<args.args.size(); i++)
-			args.args[i]->kernel_pre_init(pOCL_Device, i);
-
-		// Allocate Device Memory
-//		cl_mem d_A = pOCL_Device->DeviceMalloc(0, test_bytes);
-//		cl_mem d_B = pOCL_Device->DeviceMalloc(1, test_bytes);
-	}
-
-protected:
-	virtual void run()
-	{
-		std::unique_lock<std::mutex> lock(system::instance().getLock());
-
-		OCL_Device* pOCL_Device = system::instance().getDevice();
-
-		for (int i = 0; i < args.args.size(); i++)
-			args.args[i]->kernel_pre_run(pOCL_Device, i);
-		
-		// host to device copy etc.
-//		pOCL_Device->CopyBufferToDevice(test_data, 0, test_bytes);
-	}
-};
-
-
-class task_cl_kernel_exec : public parallel_f::task_base
-{
-public:
-	static auto make_task(task_cl_kernel_args& args,
-						  std::string programName, std::string kernelName,
-						  size_t global_work_size, size_t local_work_size)
-	{
-		return std::make_shared<task_cl_kernel_exec>(args, programName, kernelName, global_work_size, local_work_size);
-	}
-
-public:
-	task_cl_kernel_args& args;
-	cl_kernel Kernel;
-	size_t global_work_size;
-	size_t local_work_size;
-
-	task_cl_kernel_exec(task_cl_kernel_args& args, std::string programName, std::string kernelName,
-						size_t global_work_size, size_t local_work_size)
-		:
-		args(args),
-		global_work_size(global_work_size),
-		local_work_size(local_work_size)
-	{
-		std::unique_lock<std::mutex> lock(system::instance().getLock());
-
-		printf("Building Kernel...\n");
-
-		//cl_int err;
-		OCL_Device* pOCL_Device = system::instance().getDevice();
-
-		// Set up OpenCL 
-		Kernel = pOCL_Device->GetKernel(programName.c_str(), kernelName.c_str());
-
-		// Set Kernel Arguments
-		for (int i = 0; i < args.args.size(); i++)
-			args.args[i]->kernel_exec_init(Kernel, i);
-
-//		cl_int _num = test_bytes / 16;
-//		err = clSetKernelArg(Kernel, 0, sizeof(cl_mem), &d_A);
-//		CHECK_OPENCL_ERROR(err);
-//		err = clSetKernelArg(Kernel, 1, sizeof(cl_mem), &d_B);
-//		CHECK_OPENCL_ERROR(err);
-//		err = clSetKernelArg(Kernel, 2, sizeof(cl_int), &_num);
-//		CHECK_OPENCL_ERROR(err);
-	}
-
-protected:
-	virtual void run()
-	{
-		std::unique_lock<std::mutex> lock(system::instance().getLock());
-
-		parallel_f::logInfo("task_cl_kernel_exec::run()\n");
-		
-		cl_int err;
-		OCL_Device* pOCL_Device = system::instance().getDevice();
-
-		// Wait for previous action to finish
-		err = clFinish(pOCL_Device->GetQueue());
-		CHECK_OPENCL_ERROR(err);
-
-		printf("Running Kernel...\n");
-
-		// Run the kernel
-		err = clEnqueueNDRangeKernel(pOCL_Device->GetQueue(), Kernel, 1, NULL, &global_work_size, &local_work_size, 0, NULL, NULL);
-		CHECK_OPENCL_ERROR(err);
-
-		// Wait for kernel to finish
-		err = clFinish(pOCL_Device->GetQueue());
-		CHECK_OPENCL_ERROR(err);
-	}
-};
-
-
-class task_cl_kernel_post : public parallel_f::task_base
-{
-public:
-	static auto make_task(task_cl_kernel_args& args)
-	{
-		return std::make_shared<task_cl_kernel_post>(args);
-	}
-
-public:
-	task_cl_kernel_args& args;
-
-	task_cl_kernel_post(task_cl_kernel_args& args) : args(args)
-	{
-	}
-
-	virtual ~task_cl_kernel_post()
-	{
-		std::unique_lock<std::mutex> lock(system::instance().getLock());
-
-		OCL_Device* pOCL_Device = system::instance().getDevice();
-
-		for (int i = 0; i < args.args.size(); i++)
-			args.args[i]->kernel_post_deinit(pOCL_Device, i);
-	}
-
-protected:
-	virtual void run()
-	{
-		std::unique_lock<std::mutex> lock(system::instance().getLock());
-
-		OCL_Device* pOCL_Device = system::instance().getDevice();
-
-		for (int i = 0; i < args.args.size(); i++)
-			args.args[i]->kernel_post_run(pOCL_Device, i);
-
-//		pOCL_Device->CopyBufferToHost(test_data, 1, test_bytes);
-	}
-};
-
-}
-
+// parallel_f :: task_cl == testing OpenCL kernel execution
 
 static void test_cl_kernel()
 {
 	void* data = malloc(1024*1024);
+
 	task_cl::task_cl_kernel_args args(new task_cl::task_cl_kernel_args::kernel_arg_mem(1024 * 1024, data, NULL),
 									  new task_cl::task_cl_kernel_args::kernel_arg_mem(1024 * 1024, NULL, data),
 									  new task_cl::task_cl_kernel_args::kernel_arg_t<cl_int>(1024 * 1024 / 16));
@@ -608,37 +299,6 @@ static void test_cl_kernel()
 }
 
 
-namespace task_cl {
-
-static auto make_task(std::string file, std::string kernel, size_t global_work_size,
-					  size_t local_work_size, task_cl::task_cl_kernel_args& kernel_args)
-{
-	auto task_pre = task_cl::task_cl_kernel_pre::make_task(kernel_args);
-	auto task_exec = task_cl::task_cl_kernel_exec::make_task(kernel_args, file, kernel, global_work_size, local_work_size);
-	auto task_post = task_cl::task_cl_kernel_post::make_task(kernel_args);
-	
-	parallel_f::logInfo("task_cl::make_task()\n");
-
-	auto func = [task_pre,task_exec,task_post,kernel]() {
-		parallel_f::task_queue tq;
-		
-		parallel_f::logInfo("task_cl('%s')\n", kernel.c_str());
-		
-		tq.push(task_pre);
-		tq.push(task_exec);
-		tq.push(task_post);
-
-		tq.exec();
-
-		return parallel_f::none;
-	};
-
-	return parallel_f::make_task(func);
-}
-
-}
-
-
 static void test_cl2()
 {
 	std::vector<std::byte> src(1024*1024), dst(1024*1024);
@@ -651,8 +311,6 @@ static void test_cl2()
 
 	task->finish();
 }
-
-
 
 
 static void test_cl_objects()
@@ -704,14 +362,14 @@ static void test_objects()
 		int seq;
 	};
 
-	std::vector<object> objects(100);
+	std::vector<object> objects(1000000);
 
 	parallel_f::task_list tl;
 	parallel_f::task_id flush_id = 0;
 
-	for (int i = 0; i < 20; i++) {
+	for (int i = 0; i < 10; i++) {
 		auto task = parallel_f::make_task([&objects]() {
-			for (int i = 0; i < 100; i++)
+			for (int i = 0; i < objects.size(); i++)
 				objects[i].seq++;
 
 			return parallel_f::none;
@@ -720,7 +378,7 @@ static void test_objects()
 		auto run_id = tl.append(task, flush_id);
 
 		auto log_task = parallel_f::make_task([&objects]() {
-			parallel_f::logInfo("object seq %d\n", objects[0].seq);
+			parallel_f::logInfo("object x %d, y %d, seq %d\n", objects[0].x, objects[1].y, objects[1].seq);
 
 			return parallel_f::none;
 			});
