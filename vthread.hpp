@@ -7,6 +7,7 @@
 #include <map>
 #include <mutex>
 #include <queue>
+#include <stack>
 #include <string>
 #include <thread>
 
@@ -36,7 +37,7 @@ private:
 		std::map<std::string, unsigned int> names;
 		std::mutex mutex;
 		std::condition_variable cond;
-		std::queue<vthread*> queue;
+		std::stack<vthread*> stack;
 		std::vector<std::thread*> threads;
 		int running;
 		bool shutdown;
@@ -99,22 +100,22 @@ private:
 			sysclock clock;
 			std::unique_lock<std::mutex> lock(mutex);
 
-			if (queue.empty())
+			if (stack.empty())
 				cond.wait_for(lock, std::chrono::milliseconds(timeout_ms));
 
 			if (stat)
 				stat->report_idle(clock.reset());
 			
-			if (shutdown || queue.empty())
+			if (shutdown || stack.empty())
 				return;
 
-			vthread* t = queue.front();
+			vthread* t = stack.top();
 
-			queue.pop();
+			stack.pop();
 
 			running++;
 
-			logDebug("running: %d, queue length: %zu\n", running, queue.size());
+			logDebug("running: %d, queue length: %zu\n", running, stack.size());
 
 			lock.unlock();
 
@@ -124,7 +125,7 @@ private:
 
 			running--;
 
-			logDebug("running: %d, queue length: %zu\n", running, queue.size());
+			logDebug("running: %d, queue length: %zu\n", running, stack.size());
 
 			if (stat)
 				stat->report_busy(clock.reset());
@@ -134,7 +135,7 @@ private:
 		{
 			std::unique_lock<std::mutex> lock(mutex);
 
-			queue.push(thread);
+			stack.push(thread);
 
 			cond.notify_one();
 		}
