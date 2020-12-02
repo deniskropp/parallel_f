@@ -55,7 +55,7 @@ private:
 			running(0),
 			shutdown(false)
 		{
-			for (int i = 0; i < std::thread::hardware_concurrency(); i++) {
+			for (unsigned int i = 0; i < std::thread::hardware_concurrency(); i++) {
 				auto stat = stats::instance::get().make_stat(std::to_string(i));
 
 				threads.push_back(new std::thread([this,stat]() { loop(stat); }));
