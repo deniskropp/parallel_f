@@ -1,6 +1,11 @@
 #ifndef _OCL_DEVICE_H_
 #define _OCL_DEVICE_H_
-#include "stdafx.h"
+
+#include <map>
+#include <string>
+
+#define CL_TARGET_OPENCL_VERSION 120
+#include <CL\opencl.h>
 
 class OCL_Device
 {
@@ -23,6 +28,7 @@ private:
 
 public:
 	OCL_Device(int iPlatformNum, int iDeviceNum);
+	OCL_Device(OCL_Device *main);
 	~OCL_Device(void);
 
 	void SetBuildOptions (const char* sBuildOptions);

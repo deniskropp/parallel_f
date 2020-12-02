@@ -1,4 +1,5 @@
-#include "stdafx.h"
+#include "OCL_Device.h"
+#include "Util.h"
 
 OCL_Device::OCL_Device(int iPlatformNum, int iDeviceNum)
 {
@@ -49,6 +50,18 @@ OCL_Device::OCL_Device(int iPlatformNum, int iDeviceNum)
 	CHECK_OPENCL_ERROR(err);
 
 	m_queue = clCreateCommandQueue(m_context, m_device_id, NULL, &err); 
+	CHECK_OPENCL_ERROR(err);
+}
+
+OCL_Device::OCL_Device(OCL_Device *main)
+{
+	m_platform_id = main->m_platform_id;
+	m_device_id = main->m_device_id;
+	m_context = main->m_context;
+
+	cl_int err;
+
+	m_queue = clCreateCommandQueue(m_context, m_device_id, NULL, &err);
 	CHECK_OPENCL_ERROR(err);
 }
 

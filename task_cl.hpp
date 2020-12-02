@@ -5,11 +5,9 @@
 
 #include "parallel_f.hpp"
 
+#include "OCL_Device.h"
+#include "Util.h"
 
-#define CL_TARGET_OPENCL_VERSION 120
-#include <CL\opencl.h>
-
-#include <OCL_Device.h>
 
 namespace task_cl {
 
@@ -63,6 +61,16 @@ public:
 class task_cl_kernel_args
 {
 public:
+	OCL_Device* device;
+
+	OCL_Device* get_device()
+	{
+		if (!device)
+			device = new OCL_Device(system::instance().getDevice());
+
+		return device;
+	}
+
 	class kernel_arg
 	{
 	public:
@@ -84,7 +92,7 @@ public:
 		virtual void kernel_exec_init(cl_kernel Kernel, int idx)
 		{
 			cl_int err;
-			err = clSetKernelArg(Kernel, idx, sizeof(cl_int), &arg);
+			err = clSetKernelArg(Kernel, idx, sizeof(T), &arg);
 			CHECK_OPENCL_ERROR(err);
 		}
 	};
@@ -105,14 +113,21 @@ public:
 
 		virtual void kernel_pre_init(OCL_Device* pOCL_Device, int idx)
 		{
+			parallel_f::logInfo("task_cl: Malloc(%d)\n", idx);
+
 			// Allocate Device Memory
 			mem = pOCL_Device->DeviceMalloc(idx, size);
 		}
 
 		virtual void kernel_pre_run(OCL_Device* pOCL_Device, int idx)
 		{
-			if (host_in)
+			if (host_in) {
+				parallel_f::logInfo("task_cl: Host->Device(%d)...\n", idx);
+
 				pOCL_Device->CopyBufferToDevice(host_in, idx, size);
+
+				parallel_f::logInfo("task_cl: Host->Device(%d) done.\n", idx);
+			}
 		}
 
 		virtual void kernel_exec_init(cl_kernel Kernel, int idx)
@@ -124,12 +139,19 @@ public:
 
 		virtual void kernel_post_run(OCL_Device* pOCL_Device, int idx)
 		{
-			if (host_out)
+			if (host_out) {
+				parallel_f::logInfo("task_cl: Device->Host(%d)...\n", idx);
+
 				pOCL_Device->CopyBufferToHost(host_out, idx, size);
+
+				parallel_f::logInfo("task_cl: Device->Host(%d) done.\n", idx);
+			}
 		}
 
 		virtual void kernel_post_deinit(OCL_Device* pOCL_Device, int idx)
 		{
+			parallel_f::logInfo("task_cl: Free(%d)\n", idx);
+			
 			pOCL_Device->DeviceFree(idx);
 		}
 	};
@@ -156,8 +178,16 @@ public:
 
 	template <typename... kargs>
 	task_cl_kernel_args(kargs*... args)
+		:
+		device(0)
 	{
 		(this->args.push_back(std::shared_ptr<kernel_arg>(args)), ...);
+	}
+
+	~task_cl_kernel_args()
+	{
+		if (device)
+			delete device;
 	}
 };
 
@@ -175,9 +205,9 @@ public:
 
 	task_cl_kernel_pre(task_cl_kernel_args& args) : args(args)
 	{
-		std::unique_lock<std::mutex> lock(system::instance().getLock());
+		//std::unique_lock<std::mutex> lock(system::instance().getLock());
 
-		OCL_Device* pOCL_Device = system::instance().getDevice();
+		OCL_Device* pOCL_Device = args.get_device();//system::instance().getDevice();
 
 		for (int i=0; i<args.args.size(); i++)
 			args.args[i]->kernel_pre_init(pOCL_Device, i);
@@ -190,15 +220,18 @@ public:
 protected:
 	virtual void run()
 	{
-		std::unique_lock<std::mutex> lock(system::instance().getLock());
+		//std::unique_lock<std::mutex> lock(system::instance().getLock());
 
-		OCL_Device* pOCL_Device = system::instance().getDevice();
+		OCL_Device* pOCL_Device = args.get_device();//system::instance().getDevice();
 
 		for (int i = 0; i < args.args.size(); i++)
 			args.args[i]->kernel_pre_run(pOCL_Device, i);
 		
 		// host to device copy etc.
 //		pOCL_Device->CopyBufferToDevice(test_data, 0, test_bytes);
+
+		cl_int err = clFinish(pOCL_Device->GetQueue());
+		CHECK_OPENCL_ERROR(err);
 	}
 };
 
@@ -228,7 +261,7 @@ public:
 	{
 		std::unique_lock<std::mutex> lock(system::instance().getLock());
 
-		printf("Building Kernel...\n");
+		parallel_f::logInfo("task_cl_kernel_exec::init()\n");
 
 		//cl_int err;
 		OCL_Device* pOCL_Device = system::instance().getDevice();
@@ -237,8 +270,8 @@ public:
 		Kernel = pOCL_Device->GetKernel(programName.c_str(), kernelName.c_str());
 
 		// Set Kernel Arguments
-		for (int i = 0; i < args.args.size(); i++)
-			args.args[i]->kernel_exec_init(Kernel, i);
+//		for (int i = 0; i < args.args.size(); i++)
+//			args.args[i]->kernel_exec_init(Kernel, i);
 
 //		cl_int _num = test_bytes / 16;
 //		err = clSetKernelArg(Kernel, 0, sizeof(cl_mem), &d_A);
@@ -252,18 +285,16 @@ public:
 protected:
 	virtual void run()
 	{
-		std::unique_lock<std::mutex> lock(system::instance().getLock());
+		//std::unique_lock<std::mutex> lock(system::instance().getLock());
 
-		parallel_f::logInfo("task_cl_kernel_exec::run()\n");
+		parallel_f::logInfo("task_cl_kernel_exec::run()...\n");
 		
 		cl_int err;
-		OCL_Device* pOCL_Device = system::instance().getDevice();
+		OCL_Device* pOCL_Device = args.get_device();//system::instance().getDevice();
 
-		// Wait for previous action to finish
-		err = clFinish(pOCL_Device->GetQueue());
-		CHECK_OPENCL_ERROR(err);
-
-		printf("Running Kernel...\n");
+		// Set Kernel Arguments
+		for (int i = 0; i < args.args.size(); i++)
+			args.args[i]->kernel_exec_init(Kernel, i);
 
 		// Run the kernel
 		err = clEnqueueNDRangeKernel(pOCL_Device->GetQueue(), Kernel, 1, NULL, &global_work_size, &local_work_size, 0, NULL, NULL);
@@ -272,6 +303,8 @@ protected:
 		// Wait for kernel to finish
 		err = clFinish(pOCL_Device->GetQueue());
 		CHECK_OPENCL_ERROR(err);
+
+		parallel_f::logInfo("task_cl_kernel_exec::run() done.\n");
 	}
 };
 
@@ -293,9 +326,9 @@ public:
 
 	virtual ~task_cl_kernel_post()
 	{
-		std::unique_lock<std::mutex> lock(system::instance().getLock());
+		//std::unique_lock<std::mutex> lock(system::instance().getLock());
 
-		OCL_Device* pOCL_Device = system::instance().getDevice();
+		OCL_Device* pOCL_Device = args.get_device();//system::instance().getDevice();
 
 		for (int i = 0; i < args.args.size(); i++)
 			args.args[i]->kernel_post_deinit(pOCL_Device, i);
@@ -304,28 +337,33 @@ public:
 protected:
 	virtual void run()
 	{
-		std::unique_lock<std::mutex> lock(system::instance().getLock());
+		//std::unique_lock<std::mutex> lock(system::instance().getLock());
 
-		OCL_Device* pOCL_Device = system::instance().getDevice();
+		OCL_Device* pOCL_Device = args.get_device();//system::instance().getDevice();
 
 		for (int i = 0; i < args.args.size(); i++)
 			args.args[i]->kernel_post_run(pOCL_Device, i);
 
 //		pOCL_Device->CopyBufferToHost(test_data, 1, test_bytes);
+
+		cl_int err = clFinish(pOCL_Device->GetQueue());
+		CHECK_OPENCL_ERROR(err);
 	}
 };
 
 
 static auto make_task(std::string file, std::string kernel, size_t global_work_size,
-					  size_t local_work_size, task_cl::task_cl_kernel_args& kernel_args)
+					  size_t local_work_size, task_cl_kernel_args& kernel_args)
 {
-	auto task_pre = task_cl::task_cl_kernel_pre::make_task(kernel_args);
-	auto task_exec = task_cl::task_cl_kernel_exec::make_task(kernel_args, file, kernel, global_work_size, local_work_size);
-	auto task_post = task_cl::task_cl_kernel_post::make_task(kernel_args);
+	auto args = std::make_shared<task_cl_kernel_args>(kernel_args);
+
+	auto task_pre = task_cl_kernel_pre::make_task(*args);
+	auto task_exec = task_cl_kernel_exec::make_task(*args, file, kernel, global_work_size, local_work_size);
+	auto task_post = task_cl_kernel_post::make_task(*args);
 	
 	parallel_f::logDebug("task_cl::make_task()\n");
 
-	auto func = [task_pre,task_exec,task_post,kernel]() {
+	auto func = [task_pre,task_exec,task_post,kernel](auto args) {
 		parallel_f::task_queue tq;
 		
 		parallel_f::logDebug("task_cl('%s')\n", kernel.c_str());
@@ -339,7 +377,7 @@ static auto make_task(std::string file, std::string kernel, size_t global_work_s
 		return parallel_f::none;
 	};
 
-	return parallel_f::make_task(func);
+	return parallel_f::make_task(func, args);
 }
 
 }

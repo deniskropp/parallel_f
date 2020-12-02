@@ -107,6 +107,8 @@ static inline void logDebug(const char* fmt, ...)
 	std::stringstream tid; tid << std::this_thread::get_id();
 
 	system::instance().log("(-) [%02d:%02d:%02d.%03d] (%5s) %s", ST.wHour, ST.wMinute, ST.wSecond, ST.wMilliseconds, tid.str().c_str(), buf);
+
+	system::instance().flush();
 }
 
 static inline void logInfo(const char* fmt, ...)
@@ -126,6 +128,8 @@ static inline void logInfo(const char* fmt, ...)
 	std::stringstream tid; tid << std::this_thread::get_id();
 
 	system::instance().log("(*) [%02d:%02d:%02d.%03d] (%5s) %s", ST.wHour, ST.wMinute, ST.wSecond, ST.wMilliseconds, tid.str().c_str(), buf);
+
+	system::instance().flush();
 }
 
 }

@@ -1,4 +1,14 @@
-#include "stdafx.h"
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+
+#include <fstream>
+#include <string>
+#include <map>
+
+#include <Windows.h>
+
+#include "Util.h"
 
 
 void PrintPlatformInfo(cl_platform_id platformId)
@@ -125,7 +135,6 @@ void CHECK_OPENCL_ERROR(cl_int err)
 			printf("CL_DEVICE_PARTITION_FAILED\n"); exit(-1); 
 		case CL_KERNEL_ARG_INFO_NOT_AVAILABLE: 
 			printf("CL_KERNEL_ARG_INFO_NOT_AVAILABLE\n"); exit(-1); 
-
 		case CL_INVALID_VALUE: 
 			printf("CL_INVALID_VALUE\n"); exit(-1); 
 		case CL_INVALID_DEVICE_TYPE: 

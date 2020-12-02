@@ -15,22 +15,30 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="parallel_f.cpp">
+    <ClCompile Include="test_cl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\OCL_Device.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Util.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="parallel_f.hpp">
+    <ClInclude Include="..\OCL_Device.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="stats.hpp">
+    <ClInclude Include="..\task_cl.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="system.hpp">
+    <ClInclude Include="..\Util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="vthread.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cltest.cl">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

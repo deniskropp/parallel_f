@@ -1,6 +1,11 @@
 #ifndef _UTIL_H_
 #define _UTIL_H_
 
+#include <string>
+
+#define CL_TARGET_OPENCL_VERSION 120
+#include <CL\opencl.h>
+
 // ******** General Utility Functions *****************************************
 
 bool FileExists(const char * filename);
