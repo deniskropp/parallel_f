@@ -8,119 +8,25 @@
 
 
 
-static void test_queue();
 static void test_extract_todos(std::string initial_file);
 static void test_nested_tasking();
 static void test_cl_kernel();
 static void test_cl2();
 static void test_cl_objects();
-static void test_objects();
 
 
 int main()
 {
 	parallel_f::setDebugLevel(0);
 
-	test_queue();
+	test_extract_todos("parallel_f.cpp");
 	parallel_f::stats::instance::get().show_stats();
-
-//	test_extract_todos("parallel_f.cpp");
-
-//	test_nested_tasking();
 
 //	test_cl_kernel();
+//	parallel_f::stats::instance::get().show_stats();
 
 //	test_cl2();
-
-	test_objects();
-	parallel_f::stats::instance::get().show_stats();
-}
-
-
-// parallel_f :: task_queue == testing example
-
-static void test_queue()
-{
-	auto func1 = []() -> std::string
-	{
-		parallel_f::logInfo("First function being called\n");
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-		return "Hello World";
-	};
-
-	auto func2 = [](auto msg) -> std::string
-	{
-		parallel_f::logInfo("Second function receiving '%s'\n", msg.get<std::string>().c_str());
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-		return "Good bye";
-	};
-
-	auto func3 = [](auto msg) -> std::string
-	{
-		parallel_f::logInfo("Third function receiving '%s'\n", msg.get<std::string>().c_str());
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-		return "End";
-	};
-
-	parallel_f::joinables j;
-	parallel_f::task_queue tq;
-
-	for (int i = 0; i < 3; i++) {
-		// round 1 = initial test with three tasks
-		auto task1 = parallel_f::make_task(func1);
-		auto task2 = parallel_f::make_task(func2, task1->result());
-		auto task3 = parallel_f::make_task(func3, task2->result());
-
-		tq.push(task1);
-		tq.push(task2);
-		tq.push(task3);
-
-		j.add(tq.exec(true));
-	}
-
-	for (int i = 0; i < 3; i++) {
-		// round 2 = initial test with three tasks
-		auto task1 = parallel_f::make_task(func1);
-		auto task2 = parallel_f::make_task(func3, task1->result());
-		auto task3 = parallel_f::make_task(func3, task2->result());
-
-		tq.push(task1);
-		tq.push(task2);
-		tq.push(task3);
-
-		j.add(tq.exec(true));
-	}
-
-	for (int i = 0; i < 3; i++) {
-		auto task1 = parallel_f::make_task(func1);
-		auto task2 = parallel_f::make_task(func2, task1->result());
-		auto task3 = parallel_f::make_task(func3, task2->result());
-
-		// round 3 = mixture of past and new tasks
-		tq.push(task1);
-
-		parallel_f::task_queue queue2;
-
-		queue2.push(task2);
-		queue2.push(task3);
-
-		//	tq.push(queue2);	<== like pushing another queue(2) instead of tasks to our first queue
-		auto queue2_task = parallel_f::make_task([&queue2]() {
-				parallel_f::logInfo("Special function running whole queue...\n");
-				return queue2.exec();
-			});
-		tq.push(queue2_task);	// TODO: move these (previous) four lines into task_queue::push(task_queue&)???
-
-		j.add(tq.exec(true));
-	}
-
-	j.join_all();
+//	parallel_f::stats::instance::get().show_stats();
 }
 
 
@@ -130,7 +36,7 @@ static void test_extract_todos(std::string initial_file)
 {
 	auto readfile_func = [](auto filename)
 	{
-		parallel_f::logDebug( "  <= ::: => reading source code (file path) %s\n", filename.c_str() );
+		parallel_f::logInfo( "  <= ::: => reading source code (file path) %s\n", filename.c_str() );
 
 		std::ifstream filestream(filename);
 		std::string   filestring;
@@ -160,7 +66,7 @@ static void test_extract_todos(std::string initial_file)
 
 			std::string inc_filename = filestring.substr(inc_pos, inc_end - inc_pos);
 
-			parallel_f::logDebug( "     ->> local include at position (file offset) %d <- %s\n", pos, inc_filename.c_str() );
+			parallel_f::logInfo( "     ->> local include at position (file offset) %d <- %s\n", pos, inc_filename.c_str() );
 
 			included_files.push_back(inc_filename);
 		}
@@ -169,60 +75,60 @@ static void test_extract_todos(std::string initial_file)
 	};
 
 
-	std::map<std::string,bool> mainfiles;
+	std::map<std::string,bool> files;
 
-	auto loop_func = [&mainfiles](auto t1)
+	auto loop_func = [&files](auto t1)
 	{
 		std::list<std::string> included_files = t1.get<std::list<std::string>>();
 
 		for (auto& li : included_files) {
-			auto it = mainfiles.find(li);
+			auto it = files.find(li);
 
-			if (it == mainfiles.end())
-				mainfiles.insert(std::make_pair(li, false));
+			if (it == files.end())
+				files.insert(std::make_pair(li, false));
 		}
 
 		return std::any();
 	};
 
 
-	mainfiles.insert(std::make_pair(initial_file, false));
+	files.insert(std::make_pair(initial_file, false));
 
-	while (!mainfiles.empty()) {
-		std::string mainfile;
+	while (true) {
+		bool done = true;
+		parallel_f::task_list tl;
+		parallel_f::task_id loop_id = 0;
 
-		for (auto it : mainfiles) {
+		for (auto it : files) {
 			if (!it.second) {
-				mainfile = it.first;
-				mainfiles[mainfile] = true;
-				break;
+				files[it.first] = true;
+
+				done = false;
+
+
+				parallel_f::task_id id;
+
+
+				auto readtask = parallel_f::make_task(readfile_func, it.first);
+
+				id = tl.append(readtask);
+
+
+				auto parsetask = parallel_f::make_task(parsestring_func, readtask->result());
+
+				id = tl.append(parsetask, id);
+
+
+				auto looptask = parallel_f::make_task(loop_func, parsetask->result());
+
+				loop_id = tl.append(looptask, id, loop_id);
 			}
 		}
-
-		if (mainfile.empty())
-			break;
-
-
-		parallel_f::task_list tl;
-		parallel_f::task_id   id;
-
-
-		auto maintask = parallel_f::make_task(readfile_func, mainfile);
-
-		id = tl.append(maintask);
-
-
-		auto parsetask = parallel_f::make_task(parsestring_func, maintask->result());
-
-		id = tl.append(parsetask, id);
-
-
-		auto looptask = parallel_f::make_task(loop_func, parsetask->result());
-
-		id = tl.append(looptask, id);
-
-
+	
 		tl.finish();
+
+		if (done)
+			break;
 	}
 }
 
@@ -298,76 +204,6 @@ static void test_cl_objects()
 		});
 
 		tl.append(log_task, run_id);
-
-		flush_id = tl.flush();
-	}
-
-	tl.finish();
-}
-
-
-namespace object {
-
-class entity
-{
-public:
-	int x;
-	int y;
-	int seq;
-};
-
-class funcs
-{
-public:
-	static constexpr auto run_all = [](std::vector<entity>& objects) {
-		parallel_f::logInfo("object::funcs::run_all()...\n");
-
-		for (int i = 0; i < objects.size(); i++)
-			objects[i].seq++;
-
-		parallel_f::logInfo("object::funcs::run_all() done.\n");
-
-		return parallel_f::none;
-	};
-
-	static constexpr auto run = [](entity& o) {
-		parallel_f::logInfo("object::funcs::run()...\n");
-
-		o.seq++;
-
-		parallel_f::logInfo("object::funcs::run() done.\n");
-
-		return parallel_f::none;
-	};
-
-	static constexpr auto show = [](entity& o) {
-		parallel_f::logInfo("object x %d, y %d, seq %d\n", o.x, o.y, o.seq);
-
-		return parallel_f::none;
-	};
-};
-
-}
-
-static void test_objects()
-{
-	std::vector<object::entity> objects(7);
-
-	parallel_f::task_list tl;
-	parallel_f::task_id flush_id = 0;
-
-	for (int i = 0; i < 10; i++) {
-		bool first = true;
-
-		for (auto& o : objects) {
-			auto run_id = tl.append(parallel_f::make_task(object::funcs::run, o), flush_id);
-
-			if (first) {
-				tl.append(parallel_f::make_task(object::funcs::show, o), run_id);
-
-				first = false;
-			}
-		}
 
 		flush_id = tl.flush();
 	}
