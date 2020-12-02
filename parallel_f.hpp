@@ -5,124 +5,17 @@
 
 #include <any>
 #include <functional>
-#include <iostream>
 #include <list>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <queue>
-#include <sstream>
+#include <string>
 #include <thread>
 #include <tuple>
 
-#include <stdarg.h>
-#include <windows.h>
-
 #include "stats.hpp"
-
-
-std::string PrintF(const char* fmt, ...)
-{
-	char buf[1024];
-
-	va_list args;
-	va_start(args, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, args);
-	va_end(args);
-
-	return buf;
-}
-
-// parallel_f :: system == implementation
-
-namespace parallel_f {
-
-class system
-{
-public:
-	static system& instance()
-	{
-		static system system_instance;
-
-		return system_instance;
-	}
-
-private:
-	int debug_level;
-
-public:
-	system()
-		:
-		debug_level(0)
-	{
-	}
-
-	int getDebugLevel()
-	{
-		return debug_level;
-	}
-
-	void setDebugLevel(int level)
-	{
-		debug_level = level;
-	}
-};
-
-static inline int getDebugLevel()
-{
-	return system::instance().getDebugLevel();
-}
-
-static inline void setDebugLevel(int level)
-{
-	system::instance().setDebugLevel(level);
-}
-
-static inline void logDebug(const char* fmt, ...)
-{
-	if (system::instance().getDebugLevel() == 0)
-		return;
-
-
-	SYSTEMTIME ST;
-
-	GetLocalTime(&ST);
-
-
-	char buf[1024];
-
-	va_list args;
-	va_start(args, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, args);
-	va_end(args);
-
-	std::stringstream tid; tid << std::this_thread::get_id();
-
-	fprintf( stderr, "[%02d:%02d:%02d.%03d] (%5s) %s",
-			 ST.wHour, ST.wMinute, ST.wSecond, ST.wMilliseconds, tid.str().c_str(), buf );
-}
-
-static inline void logInfo(const char* fmt, ...)
-{
-	SYSTEMTIME ST;
-
-	GetLocalTime(&ST);
-
-
-	char buf[1024];
-
-	va_list args;
-	va_start(args, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, args);
-	va_end(args);
-
-	std::stringstream tid; tid << std::this_thread::get_id();
-
-	fprintf(stderr, "[%02d:%02d:%02d.%03d] (%5s) %s",
-		ST.wHour, ST.wMinute, ST.wSecond, ST.wMilliseconds, tid.str().c_str(), buf);
-}
-
-}
+#include "system.hpp"
 
 
 // parallel_f :: task_base == implementation
@@ -180,6 +73,7 @@ private:
 	std::mutex mutex;
 	std::condition_variable cond;
 	std::thread::id thread_id;
+	std::thread* unmanaged;
 
 	class manager
 	{
@@ -236,7 +130,7 @@ private:
 
 		std::string make_name(std::string name)
 		{
-			return PrintF("%s.%u", name.c_str(), names[name]++);
+			return name + "." + std::to_string(names[name]++);
 		}
 
 		void loop(std::shared_ptr<stats::stat> stat)
@@ -318,18 +212,35 @@ public:
 	vthread(std::string name = "unnamed")
 		:
 		name(manager::instance().make_name(name)),
-		done(false)
+		done(false),
+		unmanaged(0)
 	{
 	}
 
-	void start(std::function<void(void)> func)
+	~vthread()
+	{
+		if (unmanaged) {
+			unmanaged->join();
+			delete unmanaged;
+		}
+	}
+
+	void start(std::function<void(void)> func, bool managed = true)
 	{
 		logDebug("vthread::start('%s')...\n", name.c_str());
 
+		if (this->func)
+			throw std::runtime_error("vthread::start called again");
+
 		this->func = func;
 
-		manager::instance().schedule(this);
-//		(new std::thread([this]() {run(); }))->detach();
+		if (managed)
+			manager::instance().schedule(this);
+		else {
+			unmanaged = new std::thread([this]() {
+					run();
+				});
+		}
 	}
 
 	void run()
@@ -560,7 +471,7 @@ private:
 	std::tuple<Args...> args;
 
 public:
-	task(Callable callable, Args... args)
+	task(Callable callable, Args&&... args)
 		:
 		task_info(callable, args...),
 		callable(callable),
@@ -580,7 +491,7 @@ static const std::any none;
 template <typename Callable, typename... Args>
 auto make_task(Callable callable, Args... args)
 {
-	return std::shared_ptr<task<Callable, Args...>> (new task<Callable, Args...>(callable, args...));
+	return std::shared_ptr<task<Callable, Args...>> (new task<Callable,Args...>(callable, std::forward<Args>(args)...));
 }
 
 
@@ -598,13 +509,15 @@ private:
 		unsigned int wait;
 		vthread thread;
 		std::list<task_node*> to_notify;
+		bool managed;
 
 	public:
-		task_node(std::string name, std::shared_ptr<task_base> task, unsigned int wait)
+		task_node(std::string name, std::shared_ptr<task_base> task, unsigned int wait, bool managed = true)
 			:
 			task(task),
 			wait(wait),
-			thread(name)
+			thread(name),
+			managed(managed)
 		{
 		}
 
@@ -621,7 +534,7 @@ private:
 
 					for (auto node : to_notify)
 						node->notify();
-				});
+				}, managed);
 			}
 		}
 
@@ -756,7 +669,7 @@ public:
 
 		lock.unlock();
 
-		flush_join = new task_node("flush", task, 1);
+		flush_join = new task_node("flush", task, 1, false);
 
 		task_id id = ++ids;
 

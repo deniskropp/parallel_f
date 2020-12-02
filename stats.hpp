@@ -9,6 +9,10 @@
 
 #include <windows.h>
 
+#include "system.hpp"
+
+
+// parallel_f :: stats == implementation
 
 namespace parallel_f {
 
@@ -132,7 +136,7 @@ public:
 		unsigned int total_num = 0;
 
 		for (auto s : stats) {
-			std::cout << "Load '" << s->get_name() << ": " << s->get_load() << " (" << s->get_num() << " vthreads)" << std::endl;
+			system::instance().log("Load '%s': %.3f (%u vthreads)\n", s->get_name().c_str(), s->get_load(), s->get_num());
 
 			total_load += s->get_load();
 			total_busy += s->get_busy();
@@ -143,7 +147,8 @@ public:
 	
 		float total_seconds = total.reset();
 
-		std::cout << "Load all: " << total_load << " (" << total_num << " vthreads), total busy " << (total_busy / total_seconds) * 100.0f << "% (" << total_seconds << " seconds)" << std::endl;
+		system::instance().log("Load all: %.3f (%u vthreads), total busy %.3f%% (%.3f seconds)\n",
+							   total_load, total_num, (total_busy / total_seconds) * 100.0f, total_seconds);
 	}
 };
 

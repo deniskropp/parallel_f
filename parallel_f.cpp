@@ -306,38 +306,68 @@ static void test_cl_objects()
 }
 
 
-static void test_objects()
+namespace object {
+
+class entity
 {
-	class object
-	{
-	public:
-		int x;
-		int y;
-		int seq;
+public:
+	int x;
+	int y;
+	int seq;
+};
+
+class funcs
+{
+public:
+	static constexpr auto run_all = [](std::vector<entity>& objects) {
+		parallel_f::logInfo("object::funcs::run_all()...\n");
+
+		for (int i = 0; i < objects.size(); i++)
+			objects[i].seq++;
+
+		parallel_f::logInfo("object::funcs::run_all() done.\n");
+
+		return parallel_f::none;
 	};
 
-	std::vector<object> objects(1000000);
+	static constexpr auto run = [](entity& o) {
+		parallel_f::logInfo("object::funcs::run()...\n");
+
+		o.seq++;
+
+		parallel_f::logInfo("object::funcs::run() done.\n");
+
+		return parallel_f::none;
+	};
+
+	static constexpr auto show = [](entity& o) {
+		parallel_f::logInfo("object x %d, y %d, seq %d\n", o.x, o.y, o.seq);
+
+		return parallel_f::none;
+	};
+};
+
+}
+
+static void test_objects()
+{
+	std::vector<object::entity> objects(7);
 
 	parallel_f::task_list tl;
 	parallel_f::task_id flush_id = 0;
 
 	for (int i = 0; i < 10; i++) {
-		auto task = parallel_f::make_task([&objects]() {
-			for (int i = 0; i < objects.size(); i++)
-				objects[i].seq++;
+		bool first = true;
 
-			return parallel_f::none;
-		});
+		for (auto& o : objects) {
+			auto run_id = tl.append(parallel_f::make_task(object::funcs::run, o), flush_id);
 
-		auto run_id = tl.append(task, flush_id);
+			if (first) {
+				tl.append(parallel_f::make_task(object::funcs::show, o), run_id);
 
-		auto log_task = parallel_f::make_task([&objects]() {
-			parallel_f::logInfo("object x %d, y %d, seq %d\n", objects[0].x, objects[1].y, objects[1].seq);
-
-			return parallel_f::none;
-			});
-
-		tl.append(log_task, run_id);
+				first = false;
+			}
+		}
 
 		flush_id = tl.flush();
 	}
