@@ -170,6 +170,7 @@ auto make_task(Callable callable, Args... args)
 class joinable
 {
 	friend class task_queue;
+	friend class task_list;
 
 private:
 	vthread* thread;
@@ -377,24 +378,46 @@ public:
 		return id;
 	}
 
-	void finish()
+	joinable finish(bool detached = false)
 	{
 		logDebug( "task_list::finish()\n" );
 
 		std::unique_lock<std::mutex> lock(mutex);
 
-		for (auto node : nodes)
-			node.second->notify();
-
-		for (auto node : nodes) {
-			node.second->join();
-			
-			delete node.second;
-		}
-		
-		flush_join = NULL;
+		auto n = nodes;
 
 		nodes.clear();
+
+		flush_join = NULL;
+
+		if (detached) {
+			vthread* thread = new vthread("finish");
+
+			thread->start([n]() {
+					for (auto node : n)
+						node.second->notify();
+
+					for (auto node : n) {
+						node.second->join();
+
+						delete node.second;
+					}
+				});
+
+			return joinable(thread);
+		}
+		else {
+			for (auto node : n)
+				node.second->notify();
+				
+			for (auto node : n) {
+				node.second->join();
+
+				delete node.second;
+			}
+		}
+
+		return joinable();
 	}
 
 	task_id flush()
