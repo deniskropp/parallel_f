@@ -86,50 +86,58 @@ static inline void setDebugLevel(int level)
 	system::instance().setDebugLevel(level);
 }
 
+#define PARALLEL_F__LOG()										\
+	SYSTEMTIME ST;												\
+																\
+	GetLocalTime(&ST);											\
+																\
+																\
+	char buf[1024];												\
+																\
+	va_list args;												\
+	va_start(args, fmt);										\
+	vsnprintf(buf, sizeof(buf), fmt, args);						\
+	va_end(args);												\
+																\
+	std::stringstream tid; tid << std::this_thread::get_id();
+
+
 static inline void logDebug(const char* fmt, ...)
 {
 	if (getDebugLevel() == 0)
 		return;
 
+	PARALLEL_F__LOG()
 
-	SYSTEMTIME ST;
+	system::instance().log("(-) [%02d:%02d:%02d.%03d] (%5s) %s", ST.wHour, ST.wMinute, ST.wSecond, ST.wMilliseconds, tid.str().c_str(), buf);
+}
 
-	GetLocalTime(&ST);
+static inline void logDebugF(const char* fmt, ...)
+{
+	if (getDebugLevel() == 0)
+		return;
 
-
-	char buf[1024];
-
-	va_list args;
-	va_start(args, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, args);
-	va_end(args);
-
-	std::stringstream tid; tid << std::this_thread::get_id();
+	PARALLEL_F__LOG()
 
 	system::instance().log("(-) [%02d:%02d:%02d.%03d] (%5s) %s", ST.wHour, ST.wMinute, ST.wSecond, ST.wMilliseconds, tid.str().c_str(), buf);
 
-//	system::instance().flush();
+	system::instance().flush();
 }
 
 static inline void logInfo(const char* fmt, ...)
 {
-	SYSTEMTIME ST;
+	PARALLEL_F__LOG()
 
-	GetLocalTime(&ST);
+	system::instance().log("(*) [%02d:%02d:%02d.%03d] (%5s) %s", ST.wHour, ST.wMinute, ST.wSecond, ST.wMilliseconds, tid.str().c_str(), buf);
+}
 
-
-	char buf[1024];
-
-	va_list args;
-	va_start(args, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, args);
-	va_end(args);
-
-	std::stringstream tid; tid << std::this_thread::get_id();
+static inline void logInfoF(const char* fmt, ...)
+{
+	PARALLEL_F__LOG()
 
 	system::instance().log("(*) [%02d:%02d:%02d.%03d] (%5s) %s", ST.wHour, ST.wMinute, ST.wSecond, ST.wMilliseconds, tid.str().c_str(), buf);
 
-//	system::instance().flush();
+	system::instance().flush();
 }
 
 }
