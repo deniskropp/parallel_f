@@ -149,7 +149,10 @@ public:
 protected:
 	virtual void run()
 	{
-		value = std::apply(callable, args);
+		if constexpr (std::is_void_v<std::invoke_result_t<Callable,Args...>>)
+			std::apply(callable, args);
+		else
+			value = std::apply(callable, args);
 	}
 };
 
