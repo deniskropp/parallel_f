@@ -8,67 +8,75 @@
 #include <parallel_f.hpp>
 
 
-static void
-make_thumbnail(std::string filename)
-{
-	std::string thumbnail_filename;
-
-	thumbnail_filename = filename.substr(0, filename.find_last_of(".")) + "_mini.png";
-
-	std::stringstream ss;
-
-	ss << "Thumbnailing " << filename << " -> " << thumbnail_filename << std::endl;
-
-	std::cout << ss.str();
-
-	sf::Image image;
-
-	image.loadFromFile(filename);
-
-
-	sf::RenderTexture thumb_render;
-
-	thumb_render.create(image.getSize().x / 20, image.getSize().y / 20);
-
-	sf::Texture tex;
-	sf::Sprite sprite;
-
-	tex.loadFromImage(image);
-
-	sprite.setTexture(tex);
-	sprite.setScale(.05f, .05f);
-
-	thumb_render.draw(sprite);
-	
-	sf::Image thumb = thumb_render.getTexture().copyToImage();
-
-	thumb.saveToFile(thumbnail_filename);
-}
-
 int main()
 {
-	auto func_make = [](std::string filename) {
-		make_thumbnail(filename);
+	auto func_load = [](std::string filename) {
+		sf::Image image;
 
-		return parallel_f::none;
+		parallel_f::logInfoF("Load %s...\n", filename.c_str());
+
+		image.loadFromFile(filename);
+
+		return image;
 	};
+
+	auto func_scale = [](std::string filename, auto img) {
+		sf::Image image = img.get<sf::Image>();
+
+		parallel_f::logInfoF("Scale %s...\n", filename.c_str());
+
+		sf::RenderTexture thumb_render;
+
+		thumb_render.create(image.getSize().x / 20, image.getSize().y / 20);
+
+		sf::Texture tex;
+		sf::Sprite sprite;
+
+		tex.loadFromImage(image);
+
+		sprite.setTexture(tex);
+		sprite.setScale(.05f, .05f);
+
+		thumb_render.draw(sprite);
+
+		sf::Image thumb = thumb_render.getTexture().copyToImage();
+
+		return thumb;
+	};
+
+	auto func_store = [](auto img, std::string filename) {
+		sf::Image image = img.get<sf::Image>();
+
+		parallel_f::logInfoF("Store %s...\n", filename.c_str());
+
+		image.saveToFile(filename);
+	};
+
 
 	sf::Clock clock;
 
 	parallel_f::task_list task_list;
+	parallel_f::joinables joinables;
 
 	for (auto& p : std::filesystem::recursive_directory_iterator(".")) {
 		if (p.path().string().find(".jpg") != std::string::npos) {
-			auto task = parallel_f::make_task(func_make, p.path().string());
+			std::string filename = p.path().string();
 
-			task_list.append(task);
+			auto task_load = parallel_f::make_task(func_load, filename);
+			auto task_scale = parallel_f::make_task(func_scale, filename, task_load->result());
+			auto task_store = parallel_f::make_task(func_store, task_scale->result(), filename.substr(0, filename.find_last_of(".")) + "_mini.png");
 
-			if (task_list.length() > 4)
-				task_list.flush();
+			auto id_load = task_list.append(task_load);
+			auto id_scale = task_list.append(task_scale, id_load);
+			auto id_store = task_list.append(task_store, id_scale);
+
+			joinables.add(task_list.finish(true));
 		}
 	}
 
-	task_list.finish();
+	joinables.join_all();
 
 	std::cout << "Operations took " << clock.getElapsedTime().asSeconds() << " seconds." << std::endl;
+
+	parallel_f::stats::instance::get().show_stats();
 }
