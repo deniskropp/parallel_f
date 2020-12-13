@@ -1,6 +1,8 @@
 #include "OCL_Device.h"
 #include "Util.h"
 
+#include "log.hpp"
+
 OCL_Device::OCL_Device(int iPlatformNum, int iDeviceNum)
 {
 	// For error checking
@@ -142,6 +144,8 @@ cl_kernel OCL_Device::GetKernel (const char* sProgramName,
 
 cl_mem OCL_Device::DeviceMalloc(int idx, size_t size)
 {
+	parallel_f::logDebug("DeviceMalloc(%d, %zu)\n", idx, size);
+
 	cl_int err;
 	if (m_buffers.find(idx) != m_buffers.end())
 	{
@@ -175,10 +179,16 @@ cl_command_queue OCL_Device::GetQueue()
 	return m_queue;
 }
 
+cl_context OCL_Device::GetContext()
+{
+	return m_context;
+}
+
 
 void OCL_Device::CopyBufferToDevice(void* h_Buffer, int idx, size_t size)
 {
-	
+	parallel_f::logDebug("CopyBufferToDevice(%p, %d, %zu)\n", h_Buffer, idx, size);
+
 	cl_int err = clEnqueueWriteBuffer (m_queue, m_buffers[idx], CL_TRUE, 0, 
 		size, h_Buffer, 0, NULL, NULL);
 	CHECK_OPENCL_ERROR(err);

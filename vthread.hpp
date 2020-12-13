@@ -41,6 +41,7 @@ private:
 		std::vector<std::thread*> threads;
 		int running;
 		bool shutdown;
+		static thread_local vthread* current;
 
 	public:
 		static manager& instance()
@@ -117,11 +118,15 @@ private:
 
 			logDebug("running: %d, queue length: %zu\n", running, stack.size());
 
+			current = t;
+
 			lock.unlock();
 
 			t->run();
 
 			lock.lock();
+
+			current = NULL;
 
 			running--;
 
@@ -148,6 +153,11 @@ private:
 			}
 
 			return false;
+		}
+
+		vthread* get_current() const
+		{
+			return current;
 		}
 	};
 
@@ -179,6 +189,15 @@ public:
 			unmanaged->join();
 			delete unmanaged;
 		}
+	}
+
+private:
+	std::function<void(void)> unpause_handler;
+
+public:
+	void handle_unpause(std::function<void(void)> handler)
+	{
+		unpause_handler = handler;
 	}
 
 	void start(std::function<void(void)> func, bool managed = true)
@@ -236,6 +255,44 @@ public:
 			else
 				cond.wait(lock);
 		}
+	}
+
+	class paused
+	{
+	private:
+		std::function<void(void)> handler;
+
+	public:
+		paused(std::function<void(void)> handler = 0)
+			:
+			handler(handler)
+		{
+		}
+
+		void unpause()
+		{
+			logInfoF("paused::unpause() ...\n");
+			
+			if (handler)
+				handler();
+		
+			logInfoF("paused::unpause() done.\n");
+		}
+	};
+
+	static paused pause()
+	{
+		vthread* t = manager::instance().get_current();
+
+		if (t->thread_id != std::this_thread::get_id())
+			throw std::runtime_error("threads may just pause themself");
+
+		return paused([t]() {
+			if (t->unpause_handler)
+				t->unpause_handler();
+
+			logInfoF("unpause handled\n");
+		});
 	}
 
 	std::thread::id get_id()

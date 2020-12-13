@@ -10,6 +10,7 @@
 #include <queue>
 #include <tuple>
 
+#include "log.hpp"
 #include "stats.hpp"
 #include "system.hpp"
 #include "vthread.hpp"
@@ -22,17 +23,30 @@ namespace parallel_f {
 
 class task_base
 {
-private:
+public:
 	enum class task_state {
 		CREATED,
+		RUNNING,
 		FINISHED
 	};
 
+private:
 	task_state state;
 	std::mutex mutex;
+	std::vector<std::function<void(void)>> on_finished;
 
 public:
 	task_base() : state(task_state::CREATED) {}
+
+	void handle_finished(std::function<void(void)> f)
+	{
+		std::unique_lock<std::mutex> lock(mutex);
+		
+		on_finished.push_back(f);
+
+		if (state == task_state::FINISHED)
+			f();
+	}
 
 	void reset()
 	{
@@ -41,22 +55,59 @@ public:
 		state = task_state::CREATED;
 	}
 	
-	void finish()
+	bool finish()
 	{
+		logDebug("task_base::finish()\n");
+
 		std::unique_lock<std::mutex> lock(mutex);
 
-		if (state == task_state::CREATED) {
-			state = task_state::FINISHED;
+		switch (state) {
+		case task_state::CREATED:
+			state = task_state::RUNNING;
 
 			// TODO: keep locked while running task?
 			lock.unlock();
 
-			run();
+			if (run()) {
+				enter_state(task_state::FINISHED);
+				return true;
+			}
+			break;
+
+		case task_state::FINISHED:
+			return true;
 		}
+
+		return false;
 	}
 
 protected:
-	virtual void run() = 0;
+	void enter_state(task_state state)
+	{
+		logDebug("task_base::enter_state(%d)\n", state);
+		
+		std::unique_lock<std::mutex> lock(mutex);
+
+		if (this->state == state)
+			return;
+
+		switch (state) {
+		case task_state::FINISHED:
+			if (this->state != task_state::RUNNING)
+				throw std::runtime_error("not running");
+
+			for (auto f : on_finished)
+				f();
+			break;
+
+		default:
+			throw std::runtime_error("invalid transition");
+		}
+
+		this->state = state;
+	}
+
+	virtual bool run() = 0;
 };
 
 
@@ -147,12 +198,16 @@ public:
 	}
 
 protected:
-	virtual void run()
+	virtual bool run()
 	{
+		logDebug("task::run()\n");
+
 		if constexpr (std::is_void_v<std::invoke_result_t<Callable,Args...>>)
 			std::apply(callable, args);
 		else
 			value = std::apply(callable, args);
+
+		return true;
 	}
 };
 
@@ -173,19 +228,21 @@ class joinable
 	friend class task_list;
 
 private:
-	vthread* thread;
+	std::function<void(void)> join_f;
 
-	joinable(vthread* thread = NULL)
+	joinable(std::function<void(void)> join_f = 0)
 		:
-		thread(thread)
+		join_f(join_f)
 	{
 	}
 
 public:
 	void join()
 	{
-		if (thread)
-			thread->join();
+		logDebug("joinable::join()\n");
+
+		if (join_f)
+			join_f();
 	}
 };
 
@@ -207,10 +264,90 @@ public:
 	}
 };
 
+class task_node
+{
+private:
+	std::shared_ptr<task_base> task;
+	unsigned int wait;
+	vthread thread;
+	bool managed;
+	bool finished;
+	std::mutex lock;
+	std::condition_variable cond;
+
+public:
+	task_node(std::string name, std::shared_ptr<task_base> task, unsigned int wait, bool managed = true)
+		:
+		task(task),
+		wait(wait),
+		thread(name),
+		managed(managed),
+		finished(false)
+	{
+		logDebug("task_node::task_node('%s', %u)\n", name.c_str(), wait);
+
+		task->handle_finished([this]() {
+			std::unique_lock<std::mutex> l(lock);
+
+			finished = true;
+
+			cond.notify_all();
+		});
+	}
+
+	~task_node()
+	{
+		logDebug("task_node::~task_node()\n");
+	}
+
+	void add_to_notify(std::shared_ptr<task_node> node)
+	{
+		logDebug("task_node::add_to_notify()\n");
+
+		task->handle_finished([node]() {
+			node->notify();
+		});
+	}
+
+	void notify()
+	{
+		logDebug("task_node::notify()\n");
+		
+		std::unique_lock<std::mutex> l(lock);
+
+		if (!--wait) {
+			thread.start([this]() {
+				bool finished = task->finish();
+			}, managed);
+		}
+	}
+
+	void join()
+	{
+		logDebug("task_node::join()\n");
+
+		std::unique_lock<std::mutex> l(lock);
+
+		while (!finished)
+			cond.wait(l);
+	}
+
+	std::thread::id get_thread_id()
+	{
+		return thread.get_id();
+	}
+
+	std::string get_name()
+	{
+		return thread.get_name();
+	}
+};
+
 class task_queue
 {
 private:
-	std::queue<std::shared_ptr<task_base>> tasks;
+	std::shared_ptr<task_node> first;
+	std::shared_ptr<task_node> last;
 	std::mutex mutex;
 
 public:
@@ -218,49 +355,52 @@ public:
 
 	void push(std::shared_ptr<task_base> task, bool reset = true)
 	{
+		logDebug("task_queue::push()\n");
+
 		std::unique_lock<std::mutex> lock(mutex);
 
 		if (reset)
 			task->reset();
 
-		tasks.push(task);
+		if (first) {
+			auto node = std::make_shared<task_node>("task", task, 1);
+
+			last->add_to_notify(node);
+
+			last = node;
+		}
+		else {
+			auto node = std::make_shared<task_node>("first", task, 1);
+
+			first = node;
+			last = node;
+		}
 	}
 
 	joinable exec(bool detached = false)
 	{
+		logDebug("task_queue::exec()\n");
+
 		std::unique_lock<std::mutex> lock(mutex);
 
-		std::queue<std::shared_ptr<task_base>> fq = tasks;
+		auto f = first;
+		auto l = last;
 
-		tasks = std::queue<std::shared_ptr<task_base>>();
+		first.reset();
+		last.reset();
 
 		lock.unlock();
 
-		if (detached) {
-			vthread* t = new vthread();
+		f->notify();
 
-			t->start([fq]() {
-				finish_all(fq);
-				});
+		if (detached)
+			return joinable([f,l]() {
+				l->join();
+			});
 
-			return joinable(t);
-		}
-
-		finish_all(fq);
+		l->join();
 
 		return joinable();
-	}
-
-private:
-	static void finish_all(std::queue<std::shared_ptr<task_base>> fq)
-	{
-		while (!fq.empty()) {
-			auto task = fq.front();
-
-			fq.pop();
-
-			task->finish();
-		}
 	}
 };
 
@@ -272,63 +412,10 @@ typedef unsigned long long task_id;
 class task_list
 {
 private:
-	class task_node
-	{
-	private:
-		std::shared_ptr<task_base> task;
-		unsigned int wait;
-		vthread thread;
-		std::list<task_node*> to_notify;
-		bool managed;
-
-	public:
-		task_node(std::string name, std::shared_ptr<task_base> task, unsigned int wait, bool managed = true)
-			:
-			task(task),
-			wait(wait),
-			thread(name),
-			managed(managed)
-		{
-		}
-
-		void add_to_notify(task_node* node)
-		{
-			to_notify.push_back(node);
-		}
-
-		void notify()
-		{
-			if (!--wait) {
-				thread.start([this]() {
-					task->finish();
-
-					for (auto node : to_notify)
-						node->notify();
-				}, managed);
-			}
-		}
-
-		void join()
-		{
-			thread.join();
-		}
-
-		std::thread::id get_thread_id()
-		{
-			return thread.get_id();
-		}
-
-		std::string get_name()
-		{
-			return thread.get_name();
-		}
-	};
-
-private:
 	task_id ids;
-	std::map<task_id, task_node*> nodes;
+	std::map<task_id,std::shared_ptr<task_node>> nodes;
 	std::mutex mutex;
-	task_node *flush_join;
+	std::shared_ptr<task_node> flush_join;
 
 public:
 	task_list()
@@ -346,7 +433,7 @@ public:
 
 		task_id id = ++ids;
 
-		nodes[id] = new task_node("task", task, 1);
+		nodes[id] = std::make_shared<task_node>("task", task, 1);
 
 		return id;
 	}
@@ -360,7 +447,7 @@ public:
 
 		task_id id = ++ids;
 
-		task_node* node = new task_node("task", task, 1 + sizeof...(deps));
+		std::shared_ptr<task_node> node = std::make_shared<task_node>("task", task, 1 + sizeof...(deps));
 
 		std::list<task_id> deps_list({ deps... });
 
@@ -388,34 +475,19 @@ public:
 
 		nodes.clear();
 
-		flush_join = NULL;
+		flush_join.reset();
 
-		if (detached) {
-			vthread* thread = new vthread("finish");
+		for (auto node : n)
+			node.second->notify();
 
-			thread->start([n]() {
-					for (auto node : n)
-						node.second->notify();
-
-					for (auto node : n) {
-						node.second->join();
-
-						delete node.second;
-					}
-				});
-
-			return joinable(thread);
-		}
-		else {
-			for (auto node : n)
-				node.second->notify();
+		if (detached)
+			return joinable([n]() {
+				for (auto node : n)
+					node.second->join();
+			});
 				
-			for (auto node : n) {
-				node.second->join();
-
-				delete node.second;
-			}
-		}
+		for (auto node : n)
+			node.second->join();
 
 		return joinable();
 	}
@@ -426,7 +498,7 @@ public:
 
 		std::unique_lock<std::mutex> lock(mutex);
 
-		std::list<task_node*> flushed;
+		std::list<std::shared_ptr<task_node>> flushed;
 
 		for (auto node : nodes) {
 			std::stringstream ss; ss << node.second->get_thread_id();
@@ -444,7 +516,7 @@ public:
 
 		if (flush_join) {
 			flush_join->join();
-			delete flush_join;
+			flush_join.reset();
 		}
 
 		nodes.clear();
@@ -452,8 +524,7 @@ public:
 		auto task = make_task([flushed]() {
 			for (auto node : flushed) {
 				node->join();
-
-				delete node;
+				node.reset();
 			}
 
 			return none;
@@ -461,7 +532,7 @@ public:
 
 		lock.unlock();
 
-		flush_join = new task_node("flush", task, 1, false);
+		flush_join = std::make_shared<task_node>("flush", task, 1, false);
 
 		task_id id = ++ids;
 

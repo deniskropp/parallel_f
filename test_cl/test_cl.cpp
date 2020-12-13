@@ -16,12 +16,14 @@ static void test_cl_list();
 int main()
 {
 	parallel_f::setDebugLevel(0);
+	parallel_f::system::instance().setAutoFlush(parallel_f::system::AutoFlush::EndOfLine);
+
 
 	test_cl_queue();
 	parallel_f::stats::instance::get().show_stats();
 
-	test_cl_list();
-	parallel_f::stats::instance::get().show_stats();
+//	test_cl_list();
+//	parallel_f::stats::instance::get().show_stats();
 
 	//	test_cl_objects();
 	//	parallel_f::stats::instance::get().show_stats();
@@ -47,8 +49,10 @@ static void test_cl_queue()
 	tq.push(task_pre);
 	tq.exec();
 
+	auto kernel = task_cl::make_kernel("cltest.cl", "CLTest2", data.size() / 16, 256);
+
 	for (int i = 0; i < 3; i++) {
-		auto task_exec = task_cl::task_cl_kernel_exec::make_task(args, "cltest.cl", "CLTest2", data.size() / 16, 256);
+		auto task_exec = task_cl::task_cl_kernel_exec::make_task(args, kernel);
 
 		tq.push(task_exec);
 

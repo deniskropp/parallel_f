@@ -146,6 +146,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\OCL_Device.cpp" />
+    <ClCompile Include="..\parallel_f.cpp" />
     <ClCompile Include="..\Util.cpp" />
     <ClCompile Include="test_cl.cpp" />
   </ItemGroup>

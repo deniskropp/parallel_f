@@ -39,6 +39,7 @@ public:
 	void CopyBufferToHost  (void* h_Buffer, int idx, size_t size);
 
 	cl_command_queue GetQueue();
+	cl_context GetContext();
 
 	void PrintInfo(void);
 };

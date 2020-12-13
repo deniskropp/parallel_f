@@ -56,7 +56,6 @@ int main()
 	sf::Clock clock;
 
 	parallel_f::task_list task_list;
-	parallel_f::joinables joinables;
 
 	for (auto& p : std::filesystem::recursive_directory_iterator(".")) {
 		if (p.path().string().find(".jpg") != std::string::npos) {
@@ -69,12 +68,10 @@ int main()
 			auto id_load = task_list.append(task_load);
 			auto id_scale = task_list.append(task_scale, id_load);
 			auto id_store = task_list.append(task_store, id_scale);
-
-			joinables.add(task_list.finish(true));
 		}
 	}
 
-	joinables.join_all();
+	task_list.finish();
 
 	std::cout << "Operations took " << clock.getElapsedTime().asSeconds() << " seconds." << std::endl;
 

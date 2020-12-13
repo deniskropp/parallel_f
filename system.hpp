@@ -4,6 +4,7 @@
 #pragma once
 
 #include <iostream>
+#include <mutex>
 #include <sstream>
 #include <thread>
 
@@ -25,15 +26,23 @@ public:
 		return system_instance;
 	}
 
+	enum class AutoFlush {
+		Never,
+		Always,
+		EndOfLine
+	};
+
 private:
 	int debug_level;
 	std::stringstream slog;
 	std::mutex llog;
+	AutoFlush flog;
 
 public:
 	system()
 		:
-		debug_level(0)
+		debug_level(0),
+		flog(AutoFlush::Never)
 	{
 	}
 
@@ -52,6 +61,7 @@ public:
 		debug_level = level;
 	}
 
+public:
 	void log(const char* fmt, ...)
 	{
 		char buf[1024];
@@ -64,6 +74,19 @@ public:
 		std::unique_lock<std::mutex> lock(llog);
 
 		slog << buf;
+
+		switch (flog) {
+		case AutoFlush::EndOfLine:
+			if (buf[strlen(buf) - 1] != '\n')
+				return;
+			/* fall through */
+		case AutoFlush::Always:
+			lock.unlock();
+			flush();
+			break;
+		case AutoFlush::Never:
+			break;
+		}
 	}
 
 	void flush()
@@ -73,6 +96,11 @@ public:
 		std::cerr << slog.str();
 
 		slog = std::stringstream();
+	}
+
+	void setAutoFlush(AutoFlush auto_flush = AutoFlush::EndOfLine)
+	{
+		flog = auto_flush;
 	}
 };
 
@@ -86,58 +114,5 @@ static inline void setDebugLevel(int level)
 	system::instance().setDebugLevel(level);
 }
 
-#define PARALLEL_F__LOG()										\
-	SYSTEMTIME ST;												\
-																\
-	GetLocalTime(&ST);											\
-																\
-																\
-	char buf[1024];												\
-																\
-	va_list args;												\
-	va_start(args, fmt);										\
-	vsnprintf(buf, sizeof(buf), fmt, args);						\
-	va_end(args);												\
-																\
-	std::stringstream tid; tid << std::this_thread::get_id();
-
-
-static inline void logDebug(const char* fmt, ...)
-{
-	if (getDebugLevel() == 0)
-		return;
-
-	PARALLEL_F__LOG()
-
-	system::instance().log("(-) [%02d:%02d:%02d.%03d] (%5s) %s", ST.wHour, ST.wMinute, ST.wSecond, ST.wMilliseconds, tid.str().c_str(), buf);
-}
-
-static inline void logDebugF(const char* fmt, ...)
-{
-	if (getDebugLevel() == 0)
-		return;
-
-	PARALLEL_F__LOG()
-
-	system::instance().log("(-) [%02d:%02d:%02d.%03d] (%5s) %s", ST.wHour, ST.wMinute, ST.wSecond, ST.wMilliseconds, tid.str().c_str(), buf);
-
-	system::instance().flush();
-}
-
-static inline void logInfo(const char* fmt, ...)
-{
-	PARALLEL_F__LOG()
-
-	system::instance().log("(*) [%02d:%02d:%02d.%03d] (%5s) %s", ST.wHour, ST.wMinute, ST.wSecond, ST.wMilliseconds, tid.str().c_str(), buf);
-}
-
-static inline void logInfoF(const char* fmt, ...)
-{
-	PARALLEL_F__LOG()
-
-	system::instance().log("(*) [%02d:%02d:%02d.%03d] (%5s) %s", ST.wHour, ST.wMinute, ST.wSecond, ST.wMilliseconds, tid.str().c_str(), buf);
-
-	system::instance().flush();
-}
 
 }

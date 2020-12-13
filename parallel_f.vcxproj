@@ -148,9 +148,11 @@
     <ClCompile Include="parallel_f.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="log.hpp" />
     <ClInclude Include="parallel_f.hpp" />
     <ClInclude Include="stats.hpp" />
     <ClInclude Include="system.hpp" />
+    <ClInclude Include="ustd.hpp" />
     <ClInclude Include="vthread.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
