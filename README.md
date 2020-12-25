@@ -2,11 +2,11 @@
 parallel_f (tasks, queues, lists in parallel threads)
 
 This project aims at flexibility, performance and usability in the area of task-parallelism.
-Imagine you have knowledge of each tasks dependencies, parallel_f will run all tasks accordingly.
+Imagine you have knowledge of each task's dependencies, parallel_f will run all tasks accordingly.
 This is done using the task_list class. You can also use the task_queue class and care about dependencies yourself,
 where task queues run in parallel with their tasks being executed sequentially.
-Threads are being managed to avoid OS overhead creating a thread per task. Instead the vthread class is used for each
-task running in its own virtual thread.
+Threads running the tasks are being managed to avoid OS overhead creating a thread per task. Instead the vthread class is used for each
+task running in its own virtual thread. The vthread manager spawns one hardware thread per CPU executing the vthreads that are ready (scheduled).
 
 This is a hello world example with one task in a list:
 
@@ -24,32 +24,27 @@ This is a hello world example with one task in a list:
 		parallel_f::stats::instance::get().show_stats();
 	}
 
-The main thread is creating (make_task and append), starting and waiting for (finish) tasks this way.
+The main thread is creating a task via make_task, appends it to the list and calls finish to schedule it, waiting for it to be done.
 
 
 Let's look at a more complicated case with dependencies:
 
 	int main()
 	{
-		parallel_f::setDebugLevel(0);
-
-
 		auto func = [](auto a)
 		{
-			parallel_f::logInfo("Function %s\n", a.c_str());
+			parallel_f::logInfo("Function %s...\n", a.c_str());
 
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 			parallel_f::logInfo("Function %s done.\n", a.c_str());
-
-			return parallel_f::none;
 		};
 
 
 		std::vector<std::shared_ptr<parallel_f::task_base>> tasks;
 
 		for (int i=0; i<17; i++)
-			tasks.push_back(parallel_f::make_task(func, std::string("running task") + std::to_string(i) + "..."));
+			tasks.push_back(parallel_f::make_task(func, std::string("running task") + std::to_string(i)));
 
 
 		parallel_f::task_list tl;
@@ -84,36 +79,36 @@ The output looks like:
 	(*) [07:55:26.432] ( 5140) Function running task1...
 	(*) [07:55:26.432] ( 5312) Function running task3...
 	(*) [07:55:26.432] (11412) Function running task2...
-	(*) [07:55:26.538] (11412) Function running task2... done.
-	(*) [07:55:26.538] ( 5312) Function running task3... done.
-	(*) [07:55:26.538] ( 5140) Function running task1... done.
+	(*) [07:55:26.538] (11412) Function running task2 done.
+	(*) [07:55:26.538] ( 5312) Function running task3 done.
+	(*) [07:55:26.538] ( 5140) Function running task1 done.
 	(*) [07:55:26.538] ( 5312) Function running task6...
 	(*) [07:55:26.538] ( 3256) Function running task5...
-	(*) [07:55:26.538] ( 4140) Function running task0... done.
+	(*) [07:55:26.538] ( 4140) Function running task0 done.
 	(*) [07:55:26.539] (11412) Function running task4...
-	(*) [07:55:26.650] (11412) Function running task4... done.
-	(*) [07:55:26.650] ( 3256) Function running task5... done.
+	(*) [07:55:26.650] (11412) Function running task4 done.
+	(*) [07:55:26.650] ( 3256) Function running task5 done.
 	(*) [07:55:26.650] ( 4140) Function running task8...
 	(*) [07:55:26.650] (11412) Function running task7...
-	(*) [07:55:26.650] ( 5312) Function running task6... done.
+	(*) [07:55:26.650] ( 5312) Function running task6 done.
 	(*) [07:55:26.651] ( 3256) Function running task9...
-	(*) [07:55:26.762] (11412) Function running task7... done.
-	(*) [07:55:26.762] ( 3256) Function running task9... done.
+	(*) [07:55:26.762] (11412) Function running task7 done.
+	(*) [07:55:26.762] ( 3256) Function running task9 done.
 	(*) [07:55:26.762] ( 5312) Function running task14...
 	(*) [07:55:26.762] ( 5140) Function running task16...
-	(*) [07:55:26.762] ( 4140) Function running task8... done.
+	(*) [07:55:26.762] ( 4140) Function running task8 done.
 	(*) [07:55:26.762] (11412) Function running task10...
 	(*) [07:55:26.762] ( 3256) Function running task11...
 	(*) [07:55:26.762] ( 4140) Function running task12...
-	(*) [07:55:26.871] ( 4140) Function running task12... done.
-	(*) [07:55:26.871] ( 3256) Function running task11... done.
-	(*) [07:55:26.871] (11412) Function running task10... done.
+	(*) [07:55:26.871] ( 4140) Function running task12 done.
+	(*) [07:55:26.871] ( 3256) Function running task11 done.
+	(*) [07:55:26.871] (11412) Function running task10 done.
 	(*) [07:55:26.871] ( 3256) Function running task13...
-	(*) [07:55:26.871] ( 5140) Function running task16... done.
-	(*) [07:55:26.871] ( 5312) Function running task14... done.
+	(*) [07:55:26.871] ( 5140) Function running task16 done.
+	(*) [07:55:26.871] ( 5312) Function running task14 done.
 	(*) [07:55:26.871] (11412) Function running task15...
-	(*) [07:55:26.991] (11412) Function running task15... done.
-	(*) [07:55:26.991] ( 3256) Function running task13... done.
+	(*) [07:55:26.991] (11412) Function running task15 done.
+	(*) [07:55:26.991] ( 3256) Function running task13 done.
 	Load '0': 0.588 (3 vthreads)
 	Load '1': 0.386 (2 vthreads)
 	Load '2': 0.998 (5 vthreads)
