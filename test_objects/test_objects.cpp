@@ -46,14 +46,10 @@ public:
 		o->seq++;
 
 		parallel_f::logInfo("object::funcs::run(%llu) done.\n", o->id);
-
-		return parallel_f::none;
 	};
 
 	static constexpr auto show = [](entity* o) {
 		parallel_f::logInfo("object id %llu, x %d, y %d, seq %d\n", o->id, o->x, o->y, o->seq);
-
-		return parallel_f::none;
 	};
 };
 
