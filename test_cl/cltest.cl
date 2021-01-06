@@ -42,7 +42,7 @@ void CLTest2(__global uchar4* in, __global uchar4* out, int n)
 		tmp2 = in[idx*4+2];
 		tmp3 = in[idx*4+3];
 
-		for (int i=0; i<256; i++) {
+		for (int i=0; i<32; i++) {
 			tmp0 += tmp1 + tmp2 + tmp3;
 			tmp1 += tmp0 + tmp2 + tmp3;
 			tmp2 += tmp0 + tmp1 + tmp3;
@@ -74,6 +74,28 @@ void RunObjects(__global struct object* obj, int n)
 		if (++obj[idx].seq == 100)
 			obj[idx].seq = 0;
 
-		for (volatile int i=0; i<1000000; i++);
+		for (volatile int i=0; i<200000; i++);
 	}
+}
+
+
+
+
+
+
+
+
+
+
+struct Runtime
+{
+};
+
+struct Call
+{
+};
+
+__kernel
+void Runtime_Main(__global struct Runtime* runtime, __global struct Call* calls, unsigned int num_calls)
+{
 }
