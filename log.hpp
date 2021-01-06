@@ -36,7 +36,7 @@ namespace parallel_f {
 
 static inline void logDebug(const char* fmt, ...)
 {
-	if (getDebugLevel() == 0)
+	if (getDebugLevel() == 0 && getDebugLevel(fmt) == 0)
 		return;
 
 	PARALLEL_F__LOG(-);
@@ -44,7 +44,7 @@ static inline void logDebug(const char* fmt, ...)
 
 static inline void logDebugF(const char* fmt, ...)
 {
-	if (getDebugLevel() == 0)
+	if (getDebugLevel() == 0 && getDebugLevel(fmt) == 0)
 		return;
 
 	PARALLEL_F__LOG(-);
