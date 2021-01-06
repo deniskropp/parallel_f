@@ -52,7 +52,7 @@ void PrintDeviceInfo(cl_device_id deviceId)
 
 }
 
-std::string GetFileContents(const char *filename)
+std::string GetFileContents(std::string filename)
 {
   std::ifstream in(filename, std::ios::in | std::ios::binary);
   if (in)
@@ -68,28 +68,16 @@ std::string GetFileContents(const char *filename)
   return "";
 }
 
-bool FileExists(const char * filename)
+bool FileExists(std::string filename)
 {
 	FILE* file;
-    if (fopen_s(&file, filename, "r"))
+    if (fopen_s(&file, filename.c_str(), "r"))
     {
         fclose(file);
         return true;
     }
     return false;
 }
-
-double GetTime()
-{
-	LARGE_INTEGER frequency;				// Ticks per Second
-    LARGE_INTEGER ticks;					// Ticks
-	
-    QueryPerformanceFrequency(&frequency);	// Get Ticks per Second
-	QueryPerformanceCounter(&ticks);		// Get Start Time
-
-	return double(ticks.QuadPart) / frequency.QuadPart;
-}
-
 
 void CHECK_OPENCL_ERROR(cl_int err)
 {

@@ -8,10 +8,8 @@
 
 // ******** General Utility Functions *****************************************
 
-bool FileExists(const char * filename);
-std::string GetFileContents(const char *filename);
-
-double GetTime();
+bool FileExists(std::string filename);
+std::string GetFileContents(std::string filename);
 
 
 // ******** OpenCL Utility Functions ******************************************
