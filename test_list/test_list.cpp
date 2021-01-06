@@ -11,15 +11,12 @@ int main()
 	parallel_f::setDebugLevel(0);
 
 
-	auto func = [](auto a)
-	{
+	auto func = [](auto a) {
 		parallel_f::logInfo("Function %s\n", a.c_str());
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 		parallel_f::logInfo("Function %s done.\n", a.c_str());
-
-		return parallel_f::none;
 	};
 
 
