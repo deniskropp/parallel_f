@@ -13,7 +13,6 @@ private:
 	cl_platform_id		m_platform_id;
 	cl_device_id		m_device_id;
 	cl_context			m_context;
-	cl_command_queue	m_queue;
 
 	std::string m_sBuildOptions;
 
@@ -24,24 +23,27 @@ private:
 	// Maps each buffer to a index
 	std::map<int, cl_mem> m_buffers;
 
-	cl_program GetProgram(const char* sProgramName);
+	cl_program GetProgramFromFile(std::string filename);
+	cl_program GetProgram(std::string source);
 
 public:
 	OCL_Device(int iPlatformNum, int iDeviceNum);
 	OCL_Device(OCL_Device *main);
 	~OCL_Device(void);
 
-	void SetBuildOptions (const char* sBuildOptions);
-	cl_kernel GetKernel (const char* sProgramName, const char* sKernelName);
-	cl_mem DeviceMalloc(int idx, size_t size);
-	void DeviceFree(int idx);
-	void CopyBufferToDevice(void* h_Buffer, int idx, size_t size);
-	void CopyBufferToHost  (void* h_Buffer, int idx, size_t size);
-
-	cl_command_queue GetQueue();
 	cl_context GetContext();
 
 	void PrintInfo(void);
+
+	cl_command_queue CreateQueue();
+	void DestroyQueue(cl_command_queue queue);
+
+	void SetBuildOptions (const char* sBuildOptions);
+	cl_kernel GetKernel(std::string filename, std::string sKernelName);
+	cl_mem DeviceMalloc(int idx, size_t size);
+	void DeviceFree(int idx);
+	void CopyBufferToDevice(cl_command_queue queue, void* h_Buffer, int idx, size_t size);
+	void CopyBufferToHost  (cl_command_queue queue, void* h_Buffer, int idx, size_t size);
 };
 #endif
 

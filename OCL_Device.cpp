@@ -5,6 +5,8 @@
 
 OCL_Device::OCL_Device(int iPlatformNum, int iDeviceNum)
 {
+	parallel_f::logDebug("OCL_Device::OCL_Device(%d, %d)\n", iPlatformNum, iDeviceNum);
+
 	// For error checking
 	cl_int err;
 
@@ -50,25 +52,51 @@ OCL_Device::OCL_Device(int iPlatformNum, int iDeviceNum)
 	m_context = clCreateContext(vProprieties, 1, &m_device_id, NULL, NULL, 
 		&err); 
 	CHECK_OPENCL_ERROR(err);
-
-	m_queue = clCreateCommandQueue(m_context, m_device_id, NULL, &err); 
-	CHECK_OPENCL_ERROR(err);
 }
 
 OCL_Device::OCL_Device(OCL_Device *main)
 {
+	parallel_f::logDebug("OCL_Device::OCL_Device(%p)\n", main);
+
 	m_platform_id = main->m_platform_id;
 	m_device_id = main->m_device_id;
 	m_context = main->m_context;
+}
 
-	cl_int err;
+OCL_Device::~OCL_Device(void)
+{
+	parallel_f::logDebug("OCL_Device::~OCL_Device()\n");
 
-	m_queue = clCreateCommandQueue(m_context, m_device_id, NULL, &err);
-	CHECK_OPENCL_ERROR(err);
+	// Clean OpenCL Buffers
+	for (std::map<int, cl_mem>::iterator it = m_buffers.begin();
+		it != m_buffers.end(); it++)
+	{
+		// Release Buffer
+		clReleaseMemObject(it->second);
+	}
+
+	// Clean OpenCL Programs and Kernels
+	for (std::map<std::string, std::pair<cl_program,
+		std::map<std::string, cl_kernel> > >::iterator it = m_kernels.begin();
+		it != m_kernels.end(); it++)
+	{
+		for (std::map<std::string, cl_kernel>::iterator
+			it2 = it->second.second.begin();
+			it2 != it->second.second.end(); it2++)
+		{
+			clReleaseKernel(it2->second);
+		}
+		clReleaseProgram(it->second.first);
+	}
+}
+
+cl_context OCL_Device::GetContext()
+{
+	return m_context;
 }
 
 void OCL_Device::PrintInfo()
-{	
+{
 	// Printing device and platform information
 	printf("Using platform: ");
 	PrintPlatformInfo(m_platform_id);
@@ -76,28 +104,50 @@ void OCL_Device::PrintInfo()
 	PrintDeviceInfo(m_device_id);
 }
 
-cl_program OCL_Device::GetProgram (const char* sProgramName)
+cl_command_queue OCL_Device::CreateQueue()
 {
-	std::string sFile = GetFileContents(sProgramName);
+	cl_int err;
+
+	cl_command_queue queue = clCreateCommandQueue(m_context, m_device_id, NULL, &err);
+	CHECK_OPENCL_ERROR(err);
+
+	return queue;
+}
+
+void OCL_Device::DestroyQueue(cl_command_queue queue)
+{
+	clReleaseCommandQueue(queue);
+}
+
+cl_program OCL_Device::GetProgramFromFile(std::string filename)
+{
+	std::string sFile = GetFileContents(filename);
+
+	return GetProgram(sFile);
+}
+
+cl_program OCL_Device::GetProgram(std::string source)
+{
+	std::string sFile = source;
 	const char* pFile = sFile.c_str();
 	const size_t lFile = sFile.length();
 
 	cl_int err;
-	cl_program program = clCreateProgramWithSource(m_context, 1, 
-		(const char** const)&pFile, &lFile, &err); 
+	cl_program program = clCreateProgramWithSource(m_context, 1,
+		(const char** const)&pFile, &lFile, &err);
 	CHECK_OPENCL_ERROR(err);
 
 	err = clBuildProgram(program, 1, &m_device_id, NULL, NULL, NULL);
 	if (err != CL_SUCCESS)
 	{
 		size_t size;
-		clGetProgramBuildInfo (program, m_device_id, 
+		clGetProgramBuildInfo(program, m_device_id,
 			CL_PROGRAM_BUILD_LOG, 0, NULL, &size);
-		char* sLog = (char*) malloc (size);
-		clGetProgramBuildInfo (program, m_device_id, 
+		char* sLog = (char*)malloc(size);
+		clGetProgramBuildInfo(program, m_device_id,
 			CL_PROGRAM_BUILD_LOG, size, sLog, NULL);
-		
-		printf ("\n");
+
+		printf("\n");
 		printf("Build Log:\n");
 		printf("%s\n", sLog);
 		free(sLog);
@@ -113,17 +163,15 @@ void OCL_Device::SetBuildOptions(const char* sBuildOptions)
 	m_sBuildOptions = sBuildOptions;
 }
 
-cl_kernel OCL_Device::GetKernel (const char* sProgramName, 
-	const char* sKernelName)
+cl_kernel OCL_Device::GetKernel(std::string sProgramName, std::string sKernelName)
 {
 	if (m_kernels.find(sProgramName) == m_kernels.end())
 	{
 		// Build program
-		cl_program program = GetProgram(sProgramName);
+		cl_program program = GetProgramFromFile(sProgramName);
 
 		// Add to map
-		m_kernels[sProgramName] = std::pair<cl_program, std::map<std::string, 
-			cl_kernel> >(program, std::map<std::string, cl_kernel>());
+		m_kernels[sProgramName] = std::pair<cl_program, std::map<std::string, cl_kernel> >(program, std::map<std::string, cl_kernel>());
 	}
 
 	if (m_kernels[sProgramName].second.find(sKernelName) == 
@@ -131,8 +179,7 @@ cl_kernel OCL_Device::GetKernel (const char* sProgramName,
 	{
 		// Create kernel
 		cl_int err;
-		cl_kernel kernel = clCreateKernel(m_kernels[sProgramName].first, 
-			sKernelName, &err);     
+		cl_kernel kernel = clCreateKernel(m_kernels[sProgramName].first, sKernelName.c_str(), &err);     
 		CHECK_OPENCL_ERROR(err);
 		
 		// Add to map
@@ -144,7 +191,7 @@ cl_kernel OCL_Device::GetKernel (const char* sProgramName,
 
 cl_mem OCL_Device::DeviceMalloc(int idx, size_t size)
 {
-	parallel_f::logDebug("DeviceMalloc(%d, %zu)\n", idx, size);
+	parallel_f::logDebug("OCL_Device::DeviceMalloc(%d, %zu)\n", idx, size);
 
 	cl_int err;
 	if (m_buffers.find(idx) != m_buffers.end())
@@ -164,6 +211,8 @@ cl_mem OCL_Device::DeviceMalloc(int idx, size_t size)
 
 void OCL_Device::DeviceFree(int idx)
 {
+	parallel_f::logDebug("OCL_Device::DeviceFree(%d)\n", idx);
+
 	cl_int err;
 	if (m_buffers.find(idx) != m_buffers.end())
 	{
@@ -174,54 +223,21 @@ void OCL_Device::DeviceFree(int idx)
 	}
 }
 
-cl_command_queue OCL_Device::GetQueue()
+
+void OCL_Device::CopyBufferToDevice(cl_command_queue queue, void* h_Buffer, int idx, size_t size)
 {
-	return m_queue;
-}
+	parallel_f::logDebug("OCL_Device::CopyBufferToDevice(%p, %d, %zu)\n", h_Buffer, idx, size);
 
-cl_context OCL_Device::GetContext()
-{
-	return m_context;
-}
-
-
-void OCL_Device::CopyBufferToDevice(void* h_Buffer, int idx, size_t size)
-{
-	parallel_f::logDebug("CopyBufferToDevice(%p, %d, %zu)\n", h_Buffer, idx, size);
-
-	cl_int err = clEnqueueWriteBuffer (m_queue, m_buffers[idx], CL_TRUE, 0, 
+	cl_int err = clEnqueueWriteBuffer (queue, m_buffers[idx], CL_FALSE, 0, 
 		size, h_Buffer, 0, NULL, NULL);
 	CHECK_OPENCL_ERROR(err);
 }
 
-void OCL_Device::CopyBufferToHost  (void* h_Buffer, int idx, size_t size)
+void OCL_Device::CopyBufferToHost(cl_command_queue queue, void* h_Buffer, int idx, size_t size)
 {
-	cl_int err = clEnqueueReadBuffer (m_queue, m_buffers[idx], CL_TRUE, 0, 
+	parallel_f::logDebug("OCL_Device::CopyBufferToHost(%p, %d, %zu)\n", h_Buffer, idx, size);
+
+	cl_int err = clEnqueueReadBuffer (queue, m_buffers[idx], CL_FALSE, 0,
 		size, h_Buffer, 0, NULL, NULL);
 	CHECK_OPENCL_ERROR(err);
-}
-
-OCL_Device::~OCL_Device(void)
-{
-	// Clean OpenCL Buffers
-	for (std::map<int, cl_mem>::iterator it = m_buffers.begin() ; 
-		it != m_buffers.end(); it++ )
-	{
-		// Release Buffer
-		clReleaseMemObject(it->second);
-	}
-
-	// Clean OpenCL Programs and Kernels
-	for (std::map<std::string, std::pair<cl_program, 
-		std::map<std::string, cl_kernel> > >::iterator it = m_kernels.begin(); 
-		it != m_kernels.end(); it++ )
-	{
-		for (std::map<std::string, cl_kernel>::iterator 
-			it2 = it->second.second.begin(); 
-			it2 != it->second.second.end(); it2++ )
-		{
-			clReleaseKernel(it2->second);
-		}	
-		clReleaseProgram(it->second.first);
-	}	
 }
