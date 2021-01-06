@@ -34,6 +34,7 @@ public:
 
 private:
 	int debug_level;
+	std::map<std::string,int> debug_levels;
 	std::stringstream slog;
 	std::mutex llog;
 	AutoFlush flog;
@@ -48,6 +49,8 @@ public:
 
 	~system()
 	{
+		stopFlushThread();
+
 		flush();
 	}
 
@@ -56,9 +59,24 @@ public:
 		return debug_level;
 	}
 
+	int getDebugLevel(std::string str)
+	{
+		for (auto it : debug_levels) {
+			if (str.find(it.first) != str.npos)
+				return it.second;
+		}
+
+		return 0;
+	}
+
 	void setDebugLevel(int level)
 	{
 		debug_level = level;
+	}
+
+	void setDebugLevel(std::string str, int level)
+	{
+		debug_levels[str] = level;
 	}
 
 public:
@@ -102,6 +120,39 @@ public:
 	{
 		flog = auto_flush;
 	}
+
+private:
+	bool flushThreadStop;
+	std::unique_ptr<std::thread> flushThread;
+
+public:
+	void startFlushThread(unsigned int ms)
+	{
+		if (!flushThread) {
+			flushThreadStop = false;
+
+			flushThread = std::make_unique<std::thread>([this, ms]() {
+				while (!flushThreadStop) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+
+					flush();
+				}
+
+				flush();
+			});
+		}
+	}
+
+	void stopFlushThread()
+	{
+		if (flushThread) {
+			flushThreadStop = true;
+
+			flushThread->join();
+
+			flushThread.reset();
+		}
+	}
 };
 
 static inline int getDebugLevel()
@@ -109,9 +160,19 @@ static inline int getDebugLevel()
 	return system::instance().getDebugLevel();
 }
 
+static inline int getDebugLevel(std::string str)
+{
+	return system::instance().getDebugLevel(str);
+}
+
 static inline void setDebugLevel(int level)
 {
 	system::instance().setDebugLevel(level);
+}
+
+static inline void setDebugLevel(std::string str, int level)
+{
+	system::instance().setDebugLevel(str, level);
 }
 
 
