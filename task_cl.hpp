@@ -76,6 +76,9 @@ public:
 
 	void spawnQueueThread()
 	{
+		if (threads.size() >= std::thread::hardware_concurrency())
+			return;
+
 		auto stat = parallel_f::stats::instance::get().make_stat(std::string("cl") + std::to_string(threads.size()));
 
 		threads.push_back(new std::thread([this,stat]() {
@@ -218,28 +221,29 @@ public:
 		void* host_in;
 		void* host_out;
 
-		cl_mem mem;
+		std::shared_ptr<OCL_Buffer> buffer;
 
 		kernel_arg_mem(size_t size, void* host_in, void* host_out) : size(size), host_in(host_in), host_out(host_out)
 		{
-			memset(&mem, 0, sizeof(mem));
 		}
 
 		virtual void kernel_pre_init(OCL_Device* pOCL_Device, int idx)
 		{
 			parallel_f::logDebug("task_cl: Malloc(%d)\n", idx);
 
-			mem = pOCL_Device->DeviceMalloc(idx, size ? size : 1);
+			buffer = pOCL_Device->CreateBuffer(size ? size : 1);
 		}
 
 		virtual void kernel_pre_run(OCL_Device* pOCL_Device, cl_command_queue queue, int idx)
 		{
 			if (host_in)
-				pOCL_Device->CopyBufferToDevice(queue, host_in, idx, size);
+				buffer->CopyBufferToDevice(queue, host_in, size);
 		}
 
 		virtual void kernel_exec_run(cl_kernel Kernel, int idx)
 		{
+			cl_mem mem = buffer->get();
+
 			cl_int err;
 			err = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &mem);
 			CHECK_OPENCL_ERROR(err);
@@ -248,14 +252,11 @@ public:
 		virtual void kernel_post_run(OCL_Device* pOCL_Device, cl_command_queue queue, int idx)
 		{
 			if (host_out)
-				pOCL_Device->CopyBufferToHost(queue, host_out, idx, size);
+				buffer->CopyBufferToHost(queue, host_out, size);
 		}
 
 		virtual void kernel_post_deinit(OCL_Device* pOCL_Device, int idx)
 		{
-			parallel_f::logDebug("task_cl: Free(%d)\n", idx);
-			
-			pOCL_Device->DeviceFree(idx);
 		}
 	};
 
