@@ -19,6 +19,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_pause", "test_pause\te
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_flush_join", "test_flush_join\test_flush_join.vcxproj", "{314596D2-28DB-4960-91FD-E2C1E957FC03}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Grafx", "Grafx\Grafx.vcxproj", "{0A836A45-7103-4888-9264-713E7764B928}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -91,6 +93,14 @@ Global
 		{314596D2-28DB-4960-91FD-E2C1E957FC03}.Release|x64.Build.0 = Release|x64
 		{314596D2-28DB-4960-91FD-E2C1E957FC03}.Release|x86.ActiveCfg = Release|Win32
 		{314596D2-28DB-4960-91FD-E2C1E957FC03}.Release|x86.Build.0 = Release|Win32
+		{0A836A45-7103-4888-9264-713E7764B928}.Debug|x64.ActiveCfg = Debug|x64
+		{0A836A45-7103-4888-9264-713E7764B928}.Debug|x64.Build.0 = Debug|x64
+		{0A836A45-7103-4888-9264-713E7764B928}.Debug|x86.ActiveCfg = Debug|Win32
+		{0A836A45-7103-4888-9264-713E7764B928}.Debug|x86.Build.0 = Debug|Win32
+		{0A836A45-7103-4888-9264-713E7764B928}.Release|x64.ActiveCfg = Release|x64
+		{0A836A45-7103-4888-9264-713E7764B928}.Release|x64.Build.0 = Release|x64
+		{0A836A45-7103-4888-9264-713E7764B928}.Release|x86.ActiveCfg = Release|Win32
+		{0A836A45-7103-4888-9264-713E7764B928}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
