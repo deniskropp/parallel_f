@@ -12,7 +12,7 @@ static void test_grafx();
 int main()
 {
 	parallel_f::setDebugLevel(0);
-	parallel_f::setDebugLevel("OCL_Device", 1);
+//	parallel_f::setDebugLevel("OCL_Device", 1);
 //	parallel_f::setDebugLevel("task::", 1);
 //	parallel_f::setDebugLevel("task_list::", 1);
 //	parallel_f::setDebugLevel("task_queue::", 1);
