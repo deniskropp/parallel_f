@@ -146,7 +146,11 @@ static void test_grafx()
 	unsigned int frames = 0;
 	bool update = true;
 
-	parallel_f::task_queue tq;
+	parallel_f::task_list tl;
+	parallel_f::joinable j;
+
+	auto id_pre = tl.append(task_cl::kernel_pre::make_task(args));
+	auto id_exec = tl.append(task_cl::kernel_exec::make_task(args, kernel), id_pre);
 
 	while (window.isOpen()) {
 		if (clock.getElapsedTime().asSeconds() >= 2) {
@@ -157,11 +161,15 @@ static void test_grafx()
 		frames++;
 
 
-		auto task = task_cl::make_task(kernel, args);
+		tl.append(task_cl::kernel_post::make_task(args), id_exec);
 
-		tq.push(task);
+		tl.finish();
 
-		tq.exec();
+
+		id_exec = tl.append(task_cl::kernel_exec::make_task(args, kernel), id_pre);
+
+		j.join();
+		j = tl.finish(true);
 
 
 		if (update) {
@@ -201,6 +209,8 @@ static void test_grafx()
 				rects[0].bounds.tl.y = event.mouseMove.y;
 				rects[0].bounds.br.x = rects[0].bounds.tl.x + 500;
 				rects[0].bounds.br.y = rects[0].bounds.tl.y + 500;
+
+				id_pre = tl.append(task_cl::kernel_pre::make_task(args));
 				break;
 			case sf::Event::MouseButtonPressed:
 				update = true;
