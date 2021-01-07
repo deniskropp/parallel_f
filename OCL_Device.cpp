@@ -3,6 +3,40 @@
 
 #include "log.hpp"
 
+
+
+OCL_Buffer::OCL_Buffer(cl_mem mem)
+	:
+	mem(mem)
+{
+}
+
+OCL_Buffer::~OCL_Buffer()
+{
+	cl_int err;
+
+	err = clReleaseMemObject(mem);
+	CHECK_OPENCL_ERROR(err);
+}
+
+void OCL_Buffer::CopyBufferToDevice(cl_command_queue queue, void* h_Buffer, size_t size)
+{
+	parallel_f::logDebug("OCL_Buffer::CopyBufferToDevice(%p, %zu)\n", h_Buffer, size);
+
+	cl_int err = clEnqueueWriteBuffer(queue, mem, CL_FALSE, 0, size, h_Buffer, 0, NULL, NULL);
+	CHECK_OPENCL_ERROR(err);
+}
+
+void OCL_Buffer::CopyBufferToHost(cl_command_queue queue, void* h_Buffer, size_t size)
+{
+	parallel_f::logDebug("OCL_Buffer::CopyBufferToHost(%p, %d, %zu)\n", h_Buffer, size);
+
+	cl_int err = clEnqueueReadBuffer(queue, mem, CL_FALSE, 0, size, h_Buffer, 0, NULL, NULL);
+	CHECK_OPENCL_ERROR(err);
+}
+
+
+
 OCL_Device::OCL_Device(int iPlatformNum, int iDeviceNum)
 {
 	parallel_f::logDebug("OCL_Device::OCL_Device(%d, %d)\n", iPlatformNum, iDeviceNum);
@@ -223,7 +257,6 @@ void OCL_Device::DeviceFree(int idx)
 	}
 }
 
-
 void OCL_Device::CopyBufferToDevice(cl_command_queue queue, void* h_Buffer, int idx, size_t size)
 {
 	parallel_f::logDebug("OCL_Device::CopyBufferToDevice(%p, %d, %zu)\n", h_Buffer, idx, size);
@@ -240,4 +273,16 @@ void OCL_Device::CopyBufferToHost(cl_command_queue queue, void* h_Buffer, int id
 	cl_int err = clEnqueueReadBuffer (queue, m_buffers[idx], CL_FALSE, 0,
 		size, h_Buffer, 0, NULL, NULL);
 	CHECK_OPENCL_ERROR(err);
+}
+
+std::shared_ptr<OCL_Buffer> OCL_Device::CreateBuffer(size_t size)
+{
+	parallel_f::logDebug("OCL_Device::CreateBuffer(%zu)\n", size);
+
+	cl_int err;
+
+	cl_mem mem = clCreateBuffer(m_context, CL_MEM_READ_WRITE, size, NULL, &err);
+	CHECK_OPENCL_ERROR(err);
+
+	return std::make_shared<OCL_Buffer>(mem);
 }

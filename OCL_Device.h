@@ -2,10 +2,27 @@
 #define _OCL_DEVICE_H_
 
 #include <map>
+#include <memory>
 #include <string>
 
 #define CL_TARGET_OPENCL_VERSION 120
 #include <CL\opencl.h>
+
+
+class OCL_Buffer
+{
+private:
+	cl_mem mem;
+
+public:
+	OCL_Buffer(cl_mem mem);
+	~OCL_Buffer();
+
+	cl_mem get() const { return mem; }
+
+	void CopyBufferToDevice(cl_command_queue queue, void* h_Buffer, size_t size);
+	void CopyBufferToHost(cl_command_queue queue, void* h_Buffer, size_t size);
+};
 
 class OCL_Device
 {
@@ -40,10 +57,13 @@ public:
 
 	void SetBuildOptions (const char* sBuildOptions);
 	cl_kernel GetKernel(std::string filename, std::string sKernelName);
+
 	cl_mem DeviceMalloc(int idx, size_t size);
 	void DeviceFree(int idx);
 	void CopyBufferToDevice(cl_command_queue queue, void* h_Buffer, int idx, size_t size);
 	void CopyBufferToHost  (cl_command_queue queue, void* h_Buffer, int idx, size_t size);
+
+	std::shared_ptr<OCL_Buffer> CreateBuffer(size_t size);
 };
 #endif
 
