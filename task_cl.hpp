@@ -229,7 +229,7 @@ public:
 		{
 			parallel_f::logDebug("task_cl: Malloc(%d)\n", idx);
 
-			mem = pOCL_Device->DeviceMalloc(idx, size);
+			mem = pOCL_Device->DeviceMalloc(idx, size ? size : 1);
 		}
 
 		virtual void kernel_pre_run(OCL_Device* pOCL_Device, cl_command_queue queue, int idx)
