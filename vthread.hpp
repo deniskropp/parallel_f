@@ -58,7 +58,7 @@ private:
 
 		~manager()
 		{
-			logDebug("vthread::manager::~manager(): shutting down...\n");
+			LOG_DEBUG("vthread::manager::~manager(): shutting down...\n");
 
 			std::unique_lock<std::mutex> lock(mutex);
 			
@@ -69,7 +69,7 @@ private:
 			lock.unlock();
 
 			for (auto t : threads) {
-				logDebug("vthread::manager::~manager(): joining thread...\n");
+				LOG_DEBUG("vthread::manager::~manager(): joining thread...\n");
 
 				t->join();
 
@@ -108,7 +108,7 @@ private:
 
 			running++;
 
-			logDebug("vthread::manager::once(): running: %d, stack: %zu\n", running, stack.size());
+			LOG_DEBUG("vthread::manager::once(): running: %d, stack: %zu\n", running, stack.size());
 
 			lock.unlock();
 
@@ -150,7 +150,7 @@ public:
 
 	static void yield()
 	{
-		logDebug("vthread::yield()...\n");
+		LOG_DEBUG("vthread::yield()...\n");
 
 		if (!is_managed_thread())
 			throw std::runtime_error("not a managed thread");
@@ -160,7 +160,7 @@ public:
 
 	static void wait(std::condition_variable &cond, std::unique_lock<std::mutex> &lock)
 	{
-		logDebug("vthread::wait()...\n");
+		LOG_DEBUG("vthread::wait()...\n");
 
 		if (is_managed_thread())
 			throw std::runtime_error("illegal wait in managed thread");
@@ -184,28 +184,28 @@ public:
 		done(false),
 		unmanaged(0)
 	{
-		logDebug("vthread::vthread(%p, '%s')\n", this, name.c_str());
+		LOG_DEBUG("vthread::vthread(%p, '%s')\n", this, name.c_str());
 	}
 
 	~vthread() noexcept(false)
 	{
-		logDebug("vthread::~vthread(%p '%s')...\n", this, name.c_str());
+		LOG_DEBUG("vthread::~vthread(%p '%s')...\n", this, name.c_str());
 
 		std::unique_lock<std::mutex> lock(mutex);
 
 		if (func) {	// thread had been started?
-			logDebug("vthread::~vthread(%p '%s') thread was started\n", this, name.c_str());
+			LOG_DEBUG("vthread::~vthread(%p '%s') thread was started\n", this, name.c_str());
 
 			while (!done) {
 				if (vthread::is_managed_thread())
 					throw std::runtime_error("~vthread while running");
 
-				logDebug("vthread::~vthread(%p '%s') waiting for run() to finish\n", this, name.c_str());
+				LOG_DEBUG("vthread::~vthread(%p '%s') waiting for run() to finish\n", this, name.c_str());
 
 				vthread::wait(cond, lock);
 			}
 
-			logDebug("vthread::~vthread(%p '%s') thread is done\n", this, name.c_str());
+			LOG_DEBUG("vthread::~vthread(%p '%s') thread is done\n", this, name.c_str());
 		}
 
 		if (unmanaged) {
@@ -217,7 +217,7 @@ public:
 public:
 	void start(std::function<void(void)> f, bool managed = true)
 	{
-		logDebug("vthread::start(%p '%s', %s)...\n", this, name.c_str(), f.target_type().name());
+		LOG_DEBUG("vthread::start(%p '%s', %s)...\n", this, name.c_str(), f.target_type().name());
 
 		std::unique_lock<std::mutex> lock(mutex);
 
@@ -240,7 +240,7 @@ public:
 
 	void run()
 	{
-		logDebug("vthread::run(%p '%s')...\n", this, name.c_str());
+		LOG_DEBUG("vthread::run(%p '%s')...\n", this, name.c_str());
 
 		std::unique_lock<std::mutex> lock(mutex);
 
@@ -250,12 +250,12 @@ public:
 
 		lock.unlock();
 
-		logDebug("vthread::run(%p '%s') calling %s...\n", this, name.c_str(), f.target_type().name());
+		LOG_DEBUG("vthread::run(%p '%s') calling %s...\n", this, name.c_str(), f.target_type().name());
 
 		if (f)
 			f();
 
-		logDebug("vthread::run(%p '%s') calling %s done.\n", this, name.c_str(), f.target_type().name());
+		LOG_DEBUG("vthread::run(%p '%s') calling %s done.\n", this, name.c_str(), f.target_type().name());
 
 		lock.lock();
 
@@ -265,12 +265,12 @@ public:
 
 		thread_id = std::thread::id();
 
-		logDebug("vthread::run(%p '%s') done.\n", this, name.c_str());
+		LOG_DEBUG("vthread::run(%p '%s') done.\n", this, name.c_str());
 	}
 
 	void join()
 	{
-		logDebug("vthread::join(%p '%s')...\n", this, name.c_str());
+		LOG_DEBUG("vthread::join(%p '%s')...\n", this, name.c_str());
 
 		std::unique_lock<std::mutex> lock(mutex);
 

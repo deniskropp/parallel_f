@@ -21,7 +21,7 @@ OCL_Buffer::~OCL_Buffer()
 
 void OCL_Buffer::CopyBufferToDevice(cl_command_queue queue, void* h_Buffer, size_t size)
 {
-	parallel_f::logDebug("OCL_Buffer::CopyBufferToDevice(%p, %zu)\n", h_Buffer, size);
+	LOG_DEBUG("OCL_Buffer::CopyBufferToDevice(%p, %zu)\n", h_Buffer, size);
 
 	cl_int err = clEnqueueWriteBuffer(queue, mem, CL_FALSE, 0, size, h_Buffer, 0, NULL, NULL);
 	CHECK_OPENCL_ERROR(err);
@@ -29,7 +29,7 @@ void OCL_Buffer::CopyBufferToDevice(cl_command_queue queue, void* h_Buffer, size
 
 void OCL_Buffer::CopyBufferToHost(cl_command_queue queue, void* h_Buffer, size_t size)
 {
-	parallel_f::logDebug("OCL_Buffer::CopyBufferToHost(%p, %d, %zu)\n", h_Buffer, size);
+	LOG_DEBUG("OCL_Buffer::CopyBufferToHost(%p, %d, %zu)\n", h_Buffer, size);
 
 	cl_int err = clEnqueueReadBuffer(queue, mem, CL_FALSE, 0, size, h_Buffer, 0, NULL, NULL);
 	CHECK_OPENCL_ERROR(err);
@@ -41,7 +41,7 @@ OCL_Device::OCL_Device(int iPlatformNum, int iDeviceNum)
 	:
 	m_main(0)
 {
-	parallel_f::logDebug("OCL_Device::OCL_Device(%d, %d)\n", iPlatformNum, iDeviceNum);
+	LOG_DEBUG("OCL_Device::OCL_Device(%d, %d)\n", iPlatformNum, iDeviceNum);
 
 	// For error checking
 	cl_int err;
@@ -94,7 +94,7 @@ OCL_Device::OCL_Device(OCL_Device *main)
 	:
 	m_main(main)
 {
-	parallel_f::logDebug("OCL_Device::OCL_Device(%p)\n", main);
+	LOG_DEBUG("OCL_Device::OCL_Device(%p)\n", main);
 
 	m_platform_id = main->m_platform_id;
 	m_device_id = main->m_device_id;
@@ -103,7 +103,7 @@ OCL_Device::OCL_Device(OCL_Device *main)
 
 OCL_Device::~OCL_Device(void)
 {
-	parallel_f::logDebug("OCL_Device::~OCL_Device()\n");
+	LOG_DEBUG("OCL_Device::~OCL_Device()\n");
 
 	// Clean OpenCL Buffers
 	for (std::map<int, cl_mem>::iterator it = m_buffers.begin();
@@ -250,7 +250,7 @@ cl_kernel OCL_Device::GetKernel(std::string sProgramName, std::string sKernelNam
 
 cl_mem OCL_Device::DeviceMalloc(int idx, size_t size)
 {
-	parallel_f::logDebug("OCL_Device::DeviceMalloc(%d, %zu)\n", idx, size);
+	LOG_DEBUG("OCL_Device::DeviceMalloc(%d, %zu)\n", idx, size);
 
 	cl_int err;
 	if (m_buffers.find(idx) != m_buffers.end())
@@ -270,7 +270,7 @@ cl_mem OCL_Device::DeviceMalloc(int idx, size_t size)
 
 void OCL_Device::DeviceFree(int idx)
 {
-	parallel_f::logDebug("OCL_Device::DeviceFree(%d)\n", idx);
+	LOG_DEBUG("OCL_Device::DeviceFree(%d)\n", idx);
 
 	cl_int err;
 	if (m_buffers.find(idx) != m_buffers.end())
@@ -284,7 +284,7 @@ void OCL_Device::DeviceFree(int idx)
 
 void OCL_Device::CopyBufferToDevice(cl_command_queue queue, void* h_Buffer, int idx, size_t size)
 {
-	parallel_f::logDebug("OCL_Device::CopyBufferToDevice(%p, %d, %zu)\n", h_Buffer, idx, size);
+	LOG_DEBUG("OCL_Device::CopyBufferToDevice(%p, %d, %zu)\n", h_Buffer, idx, size);
 
 	cl_int err = clEnqueueWriteBuffer (queue, m_buffers[idx], CL_FALSE, 0, 
 		size, h_Buffer, 0, NULL, NULL);
@@ -293,7 +293,7 @@ void OCL_Device::CopyBufferToDevice(cl_command_queue queue, void* h_Buffer, int 
 
 void OCL_Device::CopyBufferToHost(cl_command_queue queue, void* h_Buffer, int idx, size_t size)
 {
-	parallel_f::logDebug("OCL_Device::CopyBufferToHost(%p, %d, %zu)\n", h_Buffer, idx, size);
+	LOG_DEBUG("OCL_Device::CopyBufferToHost(%p, %d, %zu)\n", h_Buffer, idx, size);
 
 	cl_int err = clEnqueueReadBuffer (queue, m_buffers[idx], CL_FALSE, 0,
 		size, h_Buffer, 0, NULL, NULL);
@@ -302,7 +302,7 @@ void OCL_Device::CopyBufferToHost(cl_command_queue queue, void* h_Buffer, int id
 
 std::shared_ptr<OCL_Buffer> OCL_Device::CreateBuffer(size_t size)
 {
-	parallel_f::logDebug("OCL_Device::CreateBuffer(%zu)\n", size);
+	LOG_DEBUG("OCL_Device::CreateBuffer(%zu)\n", size);
 
 	cl_int err;
 

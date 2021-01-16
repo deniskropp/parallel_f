@@ -33,6 +33,13 @@ namespace parallel_f {
 	} while (0)
 
 
+//#define PARALLEL_F__NO_DEBUG
+
+#ifndef PARALLEL_F__NO_DEBUG
+#define LOG_DEBUG(...)		parallel_f::logDebug(__VA_ARGS__)
+#else
+#define LOG_DEBUG(...)		do {} while (0)
+#endif
 
 static inline void logDebug(const char* fmt, ...)
 {
