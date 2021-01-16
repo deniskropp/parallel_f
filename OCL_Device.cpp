@@ -174,8 +174,10 @@ void OCL_Device::DestroyQueue(cl_command_queue queue)
 
 	std::unique_lock<std::mutex> lock(m_queues_lock);
 
-	//clReleaseCommandQueue(queue);
-	m_queues_list.push_back(queue);
+	if (m_queues_list.size() < 20)
+		m_queues_list.push_back(queue);
+	else
+		clReleaseCommandQueue(queue);
 }
 
 cl_program OCL_Device::GetProgramFromFile(std::string filename)
