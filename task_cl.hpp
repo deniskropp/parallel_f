@@ -313,6 +313,12 @@ public:
 	}
 };
 
+template <typename... kargs>
+std::shared_ptr<kernel_args> make_args(kargs*... args)
+{
+	return std::make_shared<kernel_args>(std::forward<kargs*>(args)...);
+}
+
 
 class kernel_pre : public parallel_f::task_base, public std::enable_shared_from_this<kernel_pre>
 {

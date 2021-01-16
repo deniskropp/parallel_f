@@ -59,9 +59,9 @@ static void test_cl_queue()
 {
 	std::vector<std::byte> data(16 * 1024 * 1024);
 
-	auto args = std::make_shared<task_cl::kernel_args>(new task_cl::kernel_args::kernel_arg_mem(data.size(), data.data(), NULL),
-															   new task_cl::kernel_args::kernel_arg_mem(data.size(), NULL, data.data()),
-															   new task_cl::kernel_args::kernel_arg_t<cl_int>((cl_int)data.size() / 16));
+	auto args = task_cl::make_args(new task_cl::kernel_args::kernel_arg_mem(data.size(), data.data(), NULL),
+								   new task_cl::kernel_args::kernel_arg_mem(data.size(), NULL, data.data()),
+								   new task_cl::kernel_args::kernel_arg_t<cl_int>((cl_int)data.size() / 16));
 
 	auto task_pre = task_cl::kernel_pre::make_task(args);
 	auto task_post = task_cl::kernel_post::make_task(args);
@@ -100,9 +100,9 @@ static void test_cl_list()
 	auto kernel = task_cl::make_kernel("cltest.cl", "CLTest2", src.size() / 16, 256);
 
 	for (int i = 0; i < 4; i++) {
-		auto args = std::make_shared<task_cl::kernel_args>(new task_cl::kernel_args::kernel_arg_mem(src.size(), src.data(), NULL),
-														   new task_cl::kernel_args::kernel_arg_mem(dst.size(), NULL, dst.data()),
-														   new task_cl::kernel_args::kernel_arg_t<cl_int>((cl_int)src.size() / 16));
+		auto args = task_cl::make_args(new task_cl::kernel_args::kernel_arg_mem(src.size(), src.data(), NULL),
+									   new task_cl::kernel_args::kernel_arg_mem(dst.size(), NULL, dst.data()),
+									   new task_cl::kernel_args::kernel_arg_t<cl_int>((cl_int)src.size() / 16));
 
 		auto task = task_cl::make_task(kernel, args);
 
@@ -143,8 +143,8 @@ static void test_cl_objects_simple()
 	auto kernel = task_cl::make_kernel("cltest.cl", "RunObjects", objects.size(), 100);
 
 	for (int i = 0; i < 20; i++) {
-		auto args = std::make_shared<task_cl::kernel_args>(new task_cl::kernel_args::kernel_arg_mem(objects.size() * sizeof(object), objects.data(), objects.data()),
-																   new task_cl::kernel_args::kernel_arg_t<cl_int>((cl_int)objects.size()));
+		auto args = task_cl::make_args(new task_cl::kernel_args::kernel_arg_mem(objects.size() * sizeof(object), objects.data(), objects.data()),
+									   new task_cl::kernel_args::kernel_arg_t<cl_int>((cl_int)objects.size()));
 
 		auto task = task_cl::make_task(kernel, args);
 
@@ -193,8 +193,8 @@ static void test_cl_objects_queue()
 	auto kernel = task_cl::make_kernel("cltest.cl", "RunObjects", objects.size(), 100);
 
 	for (int i = 0; i < 20; i++) {
-		auto args = std::make_shared<task_cl::kernel_args>(new task_cl::kernel_args::kernel_arg_mem(objects.size() * sizeof(object), objects.data(), objects.data()),
-																   new task_cl::kernel_args::kernel_arg_t<cl_int>((cl_int)objects.size()));
+		auto args = task_cl::make_args(new task_cl::kernel_args::kernel_arg_mem(objects.size() * sizeof(object), objects.data(), objects.data()),
+									   new task_cl::kernel_args::kernel_arg_t<cl_int>((cl_int)objects.size()));
 
 		auto task_pre = task_cl::kernel_pre::make_task(args);
 		auto task_exec = task_cl::kernel_exec::make_task(args, kernel);
