@@ -126,6 +126,8 @@ public:
 
 		stats.push_back(s);
 
+		stats.sort([] (auto a, auto b) { return a->get_name() < b->get_name(); });
+
 		return s;
 	}
 

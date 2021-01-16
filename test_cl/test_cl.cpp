@@ -21,24 +21,27 @@ int main()
 //	parallel_f::setDebugLevel("task_list::", 1);
 //	parallel_f::setDebugLevel("task_queue::", 1);
 //	parallel_f::setDebugLevel("task_node::", 1);
-	parallel_f::setDebugLevel("task_cl::cl_task::", 1);
-//	parallel_f::setDebugLevel("task_cl::kernel_pre::", 1);
+//	parallel_f::setDebugLevel("task_cl::cl_task::", 1);
+	parallel_f::setDebugLevel("task_cl::kernel_pre::", 1);
 	parallel_f::setDebugLevel("task_cl::kernel_exec::", 1);
-//	parallel_f::setDebugLevel("task_cl::kernel_post::", 1);
+	parallel_f::setDebugLevel("task_cl::kernel_exec::run() <= Queue FINISHED", 1);
+	parallel_f::setDebugLevel("task_cl::kernel_post::", 1);
 
 //	parallel_f::system::instance().setAutoFlush(parallel_f::system::AutoFlush::EndOfLine);
 //	parallel_f::system::instance().startFlushThread(10);
 
 
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < 3; i++) {
 		test_cl_queue();
 		parallel_f::stats::instance::get().show_stats();
 		parallel_f::system::instance().flush();
 	}
 
-	test_cl_list();
-	parallel_f::stats::instance::get().show_stats();
-	parallel_f::system::instance().flush();
+	for (int i = 0; i < 3; i++) {
+		test_cl_list();
+		parallel_f::stats::instance::get().show_stats();
+		parallel_f::system::instance().flush();
+	}
 
 	test_cl_objects_simple();
 	parallel_f::stats::instance::get().show_stats();
@@ -96,7 +99,7 @@ static void test_cl_list()
 
 	auto kernel = task_cl::make_kernel("cltest.cl", "CLTest2", src.size() / 16, 256);
 
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 4; i++) {
 		auto args = std::make_shared<task_cl::kernel_args>(new task_cl::kernel_args::kernel_arg_mem(src.size(), src.data(), NULL),
 														   new task_cl::kernel_args::kernel_arg_mem(dst.size(), NULL, dst.data()),
 														   new task_cl::kernel_args::kernel_arg_t<cl_int>((cl_int)src.size() / 16));

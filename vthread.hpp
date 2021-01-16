@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <queue>
 #include <stack>
@@ -20,28 +21,19 @@ namespace parallel_f {
 
 // parallel_f :: vthread == implementation
 
-class vthread
+class vthread : public std::enable_shared_from_this<vthread>
 {
 private:
-	std::string name;
-	std::function<void(void)> func;
-	bool done;
-	std::mutex mutex;
-	std::condition_variable cond;
-	std::thread::id thread_id;
-	std::thread* unmanaged;
-
 	class manager
 	{
 	private:
 		std::map<std::string, unsigned int> names;
 		std::mutex mutex;
 		std::condition_variable cond;
-		std::stack<vthread*> stack;
+		std::stack<std::shared_ptr<vthread>> stack;
 		std::vector<std::thread*> threads;
 		int running;
 		bool shutdown;
-		static thread_local vthread* current;
 
 	public:
 		static manager& instance()
@@ -58,7 +50,7 @@ private:
 			shutdown(false)
 		{
 			for (unsigned int i = 0; i < std::thread::hardware_concurrency(); i++) {
-				auto stat = stats::instance::get().make_stat(std::to_string(i));
+				auto stat = stats::instance::get().make_stat(std::string("cpu.") + std::to_string(i));
 
 				threads.push_back(new std::thread([this,stat]() { loop(stat); }));
 			}
@@ -66,7 +58,7 @@ private:
 
 		~manager()
 		{
-			logDebug("~manager(): shutting down...\n");
+			logDebug("vthread::manager::~manager(): shutting down...\n");
 
 			std::unique_lock<std::mutex> lock(mutex);
 			
@@ -77,7 +69,7 @@ private:
 			lock.unlock();
 
 			for (auto t : threads) {
-				logDebug("joining thread...\n");
+				logDebug("vthread::manager::~manager(): joining thread...\n");
 
 				t->join();
 
@@ -110,15 +102,13 @@ private:
 			if (shutdown || stack.empty())
 				return;
 
-			vthread* t = stack.top();
+			std::shared_ptr<vthread> t = stack.top();
 
 			stack.pop();
 
 			running++;
 
-			logDebug("running: %d, queue length: %zu\n", running, stack.size());
-
-			current = t;
+			logDebug("vthread::manager::once(): running: %d, stack: %zu\n", running, stack.size());
 
 			lock.unlock();
 
@@ -126,17 +116,13 @@ private:
 
 			lock.lock();
 
-			current = NULL;
-
 			running--;
-
-			logDebug("running: %d, queue length: %zu\n", running, stack.size());
 
 			if (stat)
 				stat->report_busy(clock.reset());
 		}
 
-		void schedule(vthread* thread)
+		void schedule(std::shared_ptr<vthread> thread)
 		{
 			std::unique_lock<std::mutex> lock(mutex);
 
@@ -154,25 +140,42 @@ private:
 
 			return false;
 		}
-
-		vthread* get_current() const
-		{
-			return current;
-		}
 	};
 
 public:
+	static bool is_managed_thread()
+	{
+		return manager::instance().has_thread(std::this_thread::get_id());
+	}
+
 	static void yield()
 	{
 		logDebug("vthread::yield()...\n");
 
+		if (!is_managed_thread())
+			throw std::runtime_error("not a managed thread");
+
 		manager::instance().once(0, 10);
 	}
 
-	static bool is_manager_thread()
+	static void wait(std::condition_variable &cond, std::unique_lock<std::mutex> &lock)
 	{
-		return manager::instance().has_thread(std::this_thread::get_id());
+		logDebug("vthread::wait()...\n");
+
+		if (is_managed_thread())
+			throw std::runtime_error("illegal wait in managed thread");
+
+		cond.wait(lock);
 	}
+
+private:
+	std::string name;
+	std::function<void(void)> func;
+	bool done;
+	std::mutex mutex;
+	std::condition_variable cond;
+	std::thread::id thread_id;
+	std::thread* unmanaged;
 
 public:
 	vthread(std::string name = "unnamed")
@@ -184,12 +187,26 @@ public:
 		logDebug("vthread::vthread(%p, '%s')\n", this, name.c_str());
 	}
 
-	~vthread()
+	~vthread() noexcept(false)
 	{
-		logDebug("vthread::~vthread(%p)\n", this);
+		logDebug("vthread::~vthread(%p '%s')...\n", this, name.c_str());
 
-		if (func)
-			join();
+		std::unique_lock<std::mutex> lock(mutex);
+
+		if (func) {	// thread had been started?
+			logDebug("vthread::~vthread(%p '%s') thread was started\n", this, name.c_str());
+
+			while (!done) {
+				if (vthread::is_managed_thread())
+					throw std::runtime_error("~vthread while running");
+
+				logDebug("vthread::~vthread(%p '%s') waiting for run() to finish\n", this, name.c_str());
+
+				vthread::wait(cond, lock);
+			}
+
+			logDebug("vthread::~vthread(%p '%s') thread is done\n", this, name.c_str());
+		}
 
 		if (unmanaged) {
 			unmanaged->join();
@@ -198,71 +215,87 @@ public:
 	}
 
 public:
-	void start(std::function<void(void)> func, bool managed = true)
+	void start(std::function<void(void)> f, bool managed = true)
 	{
-		logDebug("vthread::start('%s')...\n", name.c_str());
+		logDebug("vthread::start(%p '%s', %s)...\n", this, name.c_str(), f.target_type().name());
 
-		if (this->func)
+		std::unique_lock<std::mutex> lock(mutex);
+
+		if (func)
 			throw std::runtime_error("vthread::start called again");
 
-		this->func = func;
+		func = f;
 
-		if (managed)
-			manager::instance().schedule(this);
+		auto shared_this = shared_from_this();
+
+		if (managed) {
+			manager::instance().schedule(shared_this);
+		}
 		else {
-			unmanaged = new std::thread([this]() {
-				run();
+			unmanaged = new std::thread([shared_this]() {
+				shared_this->run();
 			});
 		}
 	}
 
 	void run()
 	{
-		logDebug("vthread::run('%s')...\n", name.c_str());
+		logDebug("vthread::run(%p '%s')...\n", this, name.c_str());
+
+		std::unique_lock<std::mutex> lock(mutex);
 
 		thread_id = std::this_thread::get_id();
 
-		func();
+		std::function<void(void)> f = func;
 
-		logDebug("vthread::run(%p) <= func() done, locking mutex...\n", this);
+		lock.unlock();
 
-		std::unique_lock<std::mutex> lock(mutex);
-		
-		logDebug("vthread::run('%s') finished.\n", name.c_str());
+		logDebug("vthread::run(%p '%s') calling %s...\n", this, name.c_str(), f.target_type().name());
+
+		if (f)
+			f();
+
+		logDebug("vthread::run(%p '%s') calling %s done.\n", this, name.c_str(), f.target_type().name());
+
+		lock.lock();
 
 		done = true;
 
 		cond.notify_all();
+
+		thread_id = std::thread::id();
+
+		logDebug("vthread::run(%p '%s') done.\n", this, name.c_str());
 	}
 
 	void join()
 	{
-		logDebug("vthread::join('%s')...\n", name.c_str());
+		logDebug("vthread::join(%p '%s')...\n", this, name.c_str());
 
 		std::unique_lock<std::mutex> lock(mutex);
 
 		while (!done) {
-			if (vthread::is_manager_thread()) {
+			if (vthread::is_managed_thread()) {
 				if (thread_id == std::this_thread::get_id())
 					throw std::runtime_error("calling join on ourself");
 
 				lock.unlock();
 
-				vthread::yield();
+				vthread::yield();	// TODO: implement condition_variable support
 
 				lock.lock();
 			}
 			else
-				cond.wait(lock);
+				vthread::wait(cond, lock);
 		}
 	}
 
-	std::thread::id get_id()
+	std::thread::id get_id() const
 	{
 		return thread_id;
 	}
 
-	std::string get_name()
+	std::string get_name() const
 	{
 		return name;
 	}

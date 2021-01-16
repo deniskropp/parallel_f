@@ -22,13 +22,13 @@ protected:
 		parallel_f::logInfo("TestTask::run()...\n");
 
 		thread = new std::thread([this]() {
-			parallel_f::logInfo("  <- TestTask::run() thread...\n");
+			parallel_f::logInfo("  <- TestTask::run thread...\n");
 
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 			enter_state(task_state::FINISHED);
 
-			parallel_f::logInfo("  <- TestTask::run() thread done.\n");
+			parallel_f::logInfo("  <- TestTask::run thread done.\n");
 		});
 
 		parallel_f::logInfo("TestTask::run() done.\n");

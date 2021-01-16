@@ -79,16 +79,21 @@ public:
 		if (threads.size() >= std::thread::hardware_concurrency())
 			return;
 
-		auto stat = parallel_f::stats::instance::get().make_stat(std::string("cl") + std::to_string(threads.size()));
+		auto stat = parallel_f::stats::instance::get().make_stat(std::string("cl.") + std::to_string(threads.size()));
 
 		threads.push_back(new std::thread([this,stat]() {
 			parallel_f::sysclock clock;
 			std::unique_lock<std::mutex> l(lock);
 			
 			while (!stop) {
-				stat->report_idle(clock.reset());
+				if (queue.empty()) {
+					cond.wait(l);
 
-				if (!queue.empty()) {
+					l.unlock();
+
+					stat->report_idle(clock.reset());
+				}
+				else {
 					auto e = queue.front();
 
 					queue.pop();
@@ -101,13 +106,11 @@ public:
 					clFinish(e.queue);
 
 					e.done();
-
-					l.lock();
-
-					stat->report_busy(clock.reset());
 				}
-				else
-					cond.wait(l);
+
+				l.lock();
+
+				stat->report_busy(clock.reset());
 			}
 		}));
 	}
@@ -311,7 +314,7 @@ public:
 };
 
 
-class kernel_pre : public parallel_f::task_base
+class kernel_pre : public parallel_f::task_base, public std::enable_shared_from_this<kernel_pre>
 {
 public:
 	static auto make_task(std::shared_ptr<kernel_args> args)
@@ -354,10 +357,13 @@ protected:
 		for (int i = 0; i < args->args.size(); i++)
 			args->args[i]->kernel_pre_run(pOCL_Device, queue, i);
 		
-		system::instance().pushQueue(queue, [this]() {
+
+		auto shared_this = shared_from_this();
+
+		system::instance().pushQueue(queue, [shared_this]() {
 			parallel_f::logDebug("task_cl::kernel_pre::run() <= Queue FINISHED\n");
 
-			enter_state(task_state::FINISHED);
+			shared_this->enter_state(task_state::FINISHED);
 		});
 
 		parallel_f::logDebug("task_cl::kernel_pre::run() done.\n");
@@ -367,7 +373,7 @@ protected:
 };
 
 
-class kernel_exec : public parallel_f::task_base
+class kernel_exec : public parallel_f::task_base, public std::enable_shared_from_this<kernel_exec>
 {
 public:
 	static auto make_task(std::shared_ptr<kernel_args> args, std::shared_ptr<kernel> kernel)
@@ -385,11 +391,13 @@ public:
 		args(args),
 		kernel(kernel)
 	{
-		parallel_f::logDebug("task_cl::kernel_exec::kernel_exec()\n");
+		parallel_f::logDebug("task_cl::kernel_exec::kernel_exec()...\n");
 
 		OCL_Device* pOCL_Device = args->get_device();
 
 		queue = pOCL_Device->CreateQueue();
+
+		parallel_f::logDebug("task_cl::kernel_exec::kernel_exec() done.\n");
 	}
 
 	virtual ~kernel_exec()
@@ -418,10 +426,13 @@ protected:
 									 1, NULL, &kernel->global_work_size, &kernel->local_work_size, 0, NULL, NULL);
 		CHECK_OPENCL_ERROR(err);
 
-		system::instance().pushQueue(queue, [this]() {
+		
+		auto shared_this = shared_from_this();
+
+		system::instance().pushQueue(queue, [shared_this]() {
 			parallel_f::logDebug("task_cl::kernel_exec::run() <= Queue FINISHED\n");
 
-			enter_state(task_state::FINISHED);
+			shared_this->enter_state(task_state::FINISHED);
 		});
 
 		parallel_f::logDebug("task_cl::kernel_exec::run() done.\n");
@@ -431,7 +442,7 @@ protected:
 };
 
 
-class kernel_post : public parallel_f::task_base
+class kernel_post : public parallel_f::task_base, public std::enable_shared_from_this<kernel_post>
 {
 public:
 	static auto make_task(std::shared_ptr<kernel_args> args)
@@ -474,10 +485,13 @@ protected:
 		for (int i = 0; i < args->args.size(); i++)
 			args->args[i]->kernel_post_run(pOCL_Device, queue, i);
 
-		system::instance().pushQueue(queue, [this]() {
+
+		auto shared_this = shared_from_this();
+
+		system::instance().pushQueue(queue, [shared_this]() {
 			parallel_f::logDebug("task_cl::kernel_post::run() <= Queue FINISHED\n");
 
-			enter_state(task_state::FINISHED);
+			shared_this->enter_state(task_state::FINISHED);
 		});
 
 		parallel_f::logDebug("task_cl::kernel_post::run() done.\n");
@@ -487,7 +501,7 @@ protected:
 };
 
 
-class cl_task : public parallel_f::task_base
+class cl_task : public parallel_f::task_base, public std::enable_shared_from_this<cl_task>
 {
 private:
 	std::shared_ptr<kernel> kernel;
@@ -518,10 +532,12 @@ protected:
 		tq.push(task_exec);
 		tq.push(task_post);
 
-		tq.push(parallel_f::make_task([this]() {
+		auto shared_this = shared_from_this();
+
+		tq.push(parallel_f::make_task([shared_this]() {
 			parallel_f::logDebug("task_cl::cl_task FINISHED\n");
 
-			enter_state(task_state::FINISHED);
+			shared_this->enter_state(task_state::FINISHED);
 		}));
 
 		tq.exec(true);

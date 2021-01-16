@@ -11,13 +11,13 @@ static void test_join_exec();
 int main()
 {
 	parallel_f::setDebugLevel(0);
-	parallel_f::setDebugLevel("task::", 1);
-	parallel_f::setDebugLevel("task_list::", 1);
-	parallel_f::setDebugLevel("task_queue::", 1);
-	parallel_f::setDebugLevel("task_node::", 1);
+//	parallel_f::setDebugLevel("task::", 1);
+//	parallel_f::setDebugLevel("task_list::", 1);
+//	parallel_f::setDebugLevel("task_queue::", 1);
+//	parallel_f::setDebugLevel("task_node::", 1);
 
 //	parallel_f::system::instance().setAutoFlush(parallel_f::system::AutoFlush::EndOfLine);
-//	parallel_f::system::instance().startFlushThread(10);
+//	parallel_f::system::instance().startFlushThread(100);
 
 
 	test_flush();
