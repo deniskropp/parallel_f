@@ -328,7 +328,7 @@ public:
 
 	kernel_pre(std::shared_ptr<kernel_args> args) : args(args)
 	{
-		parallel_f::logDebug("task_cl::kernel_pre::kernel_pre()\n");
+		parallel_f::logDebug("task_cl::kernel_pre::kernel_pre()...\n");
 
 		OCL_Device* pOCL_Device = args->get_device();
 
@@ -336,6 +336,8 @@ public:
 
 		for (int i=0; i<args->args.size(); i++)
 			args->args[i]->kernel_pre_init(pOCL_Device, i);
+	
+		parallel_f::logDebug("task_cl::kernel_pre::kernel_pre() done.\n");
 	}
 
 	virtual ~kernel_pre()
@@ -456,11 +458,13 @@ public:
 
 	kernel_post(std::shared_ptr<kernel_args> args) : args(args)
 	{
-		parallel_f::logDebug("task_cl::kernel_post::kernel_post()\n");
+		parallel_f::logDebug("task_cl::kernel_post::kernel_post()...\n");
 
 		OCL_Device* pOCL_Device = args->get_device();
 
 		queue = pOCL_Device->CreateQueue();
+	
+		parallel_f::logDebug("task_cl::kernel_post::kernel_post() done.\n");
 	}
 
 	virtual ~kernel_post()

@@ -38,6 +38,8 @@ void OCL_Buffer::CopyBufferToHost(cl_command_queue queue, void* h_Buffer, size_t
 
 
 OCL_Device::OCL_Device(int iPlatformNum, int iDeviceNum)
+	:
+	m_main(0)
 {
 	parallel_f::logDebug("OCL_Device::OCL_Device(%d, %d)\n", iPlatformNum, iDeviceNum);
 
@@ -89,6 +91,8 @@ OCL_Device::OCL_Device(int iPlatformNum, int iDeviceNum)
 }
 
 OCL_Device::OCL_Device(OCL_Device *main)
+	:
+	m_main(main)
 {
 	parallel_f::logDebug("OCL_Device::OCL_Device(%p)\n", main);
 
@@ -140,17 +144,38 @@ void OCL_Device::PrintInfo()
 
 cl_command_queue OCL_Device::CreateQueue()
 {
-	cl_int err;
+	if (m_main)
+		return m_main->CreateQueue();
 
-	cl_command_queue queue = clCreateCommandQueue(m_context, m_device_id, NULL, &err);
-	CHECK_OPENCL_ERROR(err);
+	std::unique_lock<std::mutex> lock(m_queues_lock);
+
+	if (m_queues_list.empty()) {
+		cl_int err;
+
+		cl_command_queue queue = clCreateCommandQueue(m_context, m_device_id, NULL, &err);
+		CHECK_OPENCL_ERROR(err);
+
+		return queue;
+	}
+
+	auto it = m_queues_list.begin();
+
+	cl_command_queue queue = *it;
+
+	m_queues_list.erase(it);
 
 	return queue;
 }
 
 void OCL_Device::DestroyQueue(cl_command_queue queue)
 {
-	clReleaseCommandQueue(queue);
+	if (m_main)
+		return m_main->DestroyQueue(queue);
+
+	std::unique_lock<std::mutex> lock(m_queues_lock);
+
+	//clReleaseCommandQueue(queue);
+	m_queues_list.push_back(queue);
 }
 
 cl_program OCL_Device::GetProgramFromFile(std::string filename)

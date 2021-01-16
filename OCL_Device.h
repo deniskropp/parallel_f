@@ -1,8 +1,10 @@
 #ifndef _OCL_DEVICE_H_
 #define _OCL_DEVICE_H_
 
+#include <list>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #define CL_TARGET_OPENCL_VERSION 120
@@ -27,6 +29,7 @@ public:
 class OCL_Device
 {
 private:
+	OCL_Device*			m_main;
 	cl_platform_id		m_platform_id;
 	cl_device_id		m_device_id;
 	cl_context			m_context;
@@ -39,6 +42,9 @@ private:
 	
 	// Maps each buffer to a index
 	std::map<int, cl_mem> m_buffers;
+
+	std::mutex m_queues_lock;
+	std::list<cl_command_queue> m_queues_list;
 
 	cl_program GetProgramFromFile(std::string filename);
 	cl_program GetProgram(std::string source);
