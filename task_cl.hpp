@@ -366,6 +366,8 @@ protected:
 			args->args[i]->kernel_pre_run(pOCL_Device, queue, i);
 		
 
+		clFlush(queue);
+
 		auto shared_this = shared_from_this();
 
 		system::instance().pushQueue(queue, [shared_this]() {
@@ -434,6 +436,8 @@ protected:
 									 1, NULL, &kernel->global_work_size, &kernel->local_work_size, 0, NULL, NULL);
 		CHECK_OPENCL_ERROR(err);
 
+
+		clFlush(queue);
 		
 		auto shared_this = shared_from_this();
 
@@ -495,6 +499,8 @@ protected:
 		for (int i = 0; i < args->args.size(); i++)
 			args->args[i]->kernel_post_run(pOCL_Device, queue, i);
 
+
+		clFlush(queue);
 
 		auto shared_this = shared_from_this();
 
