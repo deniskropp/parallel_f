@@ -1,4 +1,4 @@
-// === (C) 2020 === parallel_f / task_cl (tasks, queues, lists in parallel threads)
+// === (C) 2020/2021 === parallel_f / task_cl (tasks, queues, lists in parallel threads)
 // Written by Denis Oliver Kropp <Leichenbegatter@outlook.com>
 
 #pragma once
@@ -168,8 +168,6 @@ public:
 
 std::shared_ptr<kernel> make_kernel(std::string file, std::string name, size_t global_work_size, size_t local_work_size)
 {
-	std::unique_lock<std::mutex> lock(system::instance().getLock());
-
 	OCL_Device* pOCL_Device = system::instance().getDevice();
 
 	cl_kernel k = pOCL_Device->GetKernel(file, name);
@@ -181,16 +179,6 @@ std::shared_ptr<kernel> make_kernel(std::string file, std::string name, size_t g
 class kernel_args
 {
 public:
-	OCL_Device* device;
-
-	OCL_Device* get_device()
-	{
-		if (!device)
-			device = new OCL_Device(system::instance().getDevice());
-
-		return device;
-	}
-
 	class kernel_arg
 	{
 	public:
@@ -232,8 +220,6 @@ public:
 
 		virtual void kernel_pre_init(OCL_Device* pOCL_Device, int idx)
 		{
-			LOG_DEBUG("task_cl: Malloc(%d)\n", idx);
-
 			buffer = pOCL_Device->CreateBuffer(size ? size : 1);
 		}
 
@@ -285,31 +271,8 @@ public:
 
 	template <typename... kargs>
 	kernel_args(kargs*... args)
-		:
-		device(0)
 	{
 		(this->args.push_back(std::shared_ptr<kernel_arg>(args)), ...);
-	}
-
-	~kernel_args()
-	{
-		if (device)
-			delete device;
-	}
-
-	std::shared_ptr<kernel_arg> operator [](size_t index)
-	{
-		return args[index];
-	}
-
-	template <typename T>
-	void set(size_t index, T value)
-	{
-		kernel_arg* arg = args[index].get();
-
-		kernel_arg_t<T>* arg_t = static_cast<kernel_arg_t<T>*>(arg);
-		
-		arg_t->arg = value;
 	}
 };
 
@@ -336,7 +299,7 @@ public:
 	{
 		LOG_DEBUG("task_cl::kernel_pre::kernel_pre()...\n");
 
-		OCL_Device* pOCL_Device = args->get_device();
+		OCL_Device* pOCL_Device = system::instance().getDevice();
 
 		queue = pOCL_Device->CreateQueue();
 
@@ -350,7 +313,7 @@ public:
 	{
 		LOG_DEBUG("task_cl::kernel_pre::~kernel_pre()\n");
 
-		OCL_Device* pOCL_Device = args->get_device();
+		OCL_Device* pOCL_Device = system::instance().getDevice();
 
 		pOCL_Device->DestroyQueue(queue);
 	}
@@ -360,7 +323,7 @@ protected:
 	{
 		LOG_DEBUG("task_cl::kernel_pre::run()...\n");
 
-		OCL_Device* pOCL_Device = args->get_device();
+		OCL_Device* pOCL_Device = system::instance().getDevice();
 
 		for (int i = 0; i < args->args.size(); i++)
 			args->args[i]->kernel_pre_run(pOCL_Device, queue, i);
@@ -403,7 +366,7 @@ public:
 	{
 		LOG_DEBUG("task_cl::kernel_exec::kernel_exec()...\n");
 
-		OCL_Device* pOCL_Device = args->get_device();
+		OCL_Device* pOCL_Device = system::instance().getDevice();
 
 		queue = pOCL_Device->CreateQueue();
 
@@ -414,7 +377,7 @@ public:
 	{
 		LOG_DEBUG("task_cl::kernel_exec::~kernel_exec()\n");
 
-		OCL_Device* pOCL_Device = args->get_device();
+		OCL_Device* pOCL_Device = system::instance().getDevice();
 
 		pOCL_Device->DestroyQueue(queue);
 	}
@@ -425,7 +388,9 @@ protected:
 		LOG_DEBUG("task_cl::kernel_exec::run()...\n");
 		
 		cl_int err;
-		OCL_Device* pOCL_Device = args->get_device();
+		OCL_Device* pOCL_Device = system::instance().getDevice();
+
+		std::unique_lock<std::mutex> lock(system::instance().getLock());
 
 		// Set Kernel Arguments
 		for (int i = 0; i < args->args.size(); i++)
@@ -435,6 +400,8 @@ protected:
 		err = clEnqueueNDRangeKernel(queue, kernel->clkernel,
 									 1, NULL, &kernel->global_work_size, &kernel->local_work_size, 0, NULL, NULL);
 		CHECK_OPENCL_ERROR(err);
+
+		lock.unlock();
 
 
 		clFlush(queue);
@@ -470,7 +437,7 @@ public:
 	{
 		LOG_DEBUG("task_cl::kernel_post::kernel_post()...\n");
 
-		OCL_Device* pOCL_Device = args->get_device();
+		OCL_Device* pOCL_Device = system::instance().getDevice();
 
 		queue = pOCL_Device->CreateQueue();
 	
@@ -481,7 +448,7 @@ public:
 	{
 		LOG_DEBUG("task_cl::kernel_post::~kernel_post()\n");
 
-		OCL_Device* pOCL_Device = args->get_device();
+		OCL_Device* pOCL_Device = system::instance().getDevice();
 
 		for (int i = 0; i < args->args.size(); i++)
 			args->args[i]->kernel_post_deinit(pOCL_Device, i);
@@ -494,7 +461,7 @@ protected:
 	{
 		LOG_DEBUG("task_cl::kernel_post::run()...\n");
 
-		OCL_Device* pOCL_Device = args->get_device();
+		OCL_Device* pOCL_Device = system::instance().getDevice();
 
 		for (int i = 0; i < args->args.size(); i++)
 			args->args[i]->kernel_post_run(pOCL_Device, queue, i);

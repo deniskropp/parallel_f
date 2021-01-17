@@ -38,8 +38,6 @@ void OCL_Buffer::CopyBufferToHost(cl_command_queue queue, void* h_Buffer, size_t
 
 
 OCL_Device::OCL_Device(int iPlatformNum, int iDeviceNum)
-	:
-	m_main(0)
 {
 	LOG_DEBUG("OCL_Device::OCL_Device(%d, %d)\n", iPlatformNum, iDeviceNum);
 
@@ -90,28 +88,9 @@ OCL_Device::OCL_Device(int iPlatformNum, int iDeviceNum)
 	CHECK_OPENCL_ERROR(err);
 }
 
-OCL_Device::OCL_Device(OCL_Device *main)
-	:
-	m_main(main)
-{
-	LOG_DEBUG("OCL_Device::OCL_Device(%p)\n", main);
-
-	m_platform_id = main->m_platform_id;
-	m_device_id = main->m_device_id;
-	m_context = main->m_context;
-}
-
 OCL_Device::~OCL_Device(void)
 {
 	LOG_DEBUG("OCL_Device::~OCL_Device()\n");
-
-	// Clean OpenCL Buffers
-	for (std::map<int, cl_mem>::iterator it = m_buffers.begin();
-		it != m_buffers.end(); it++)
-	{
-		// Release Buffer
-		clReleaseMemObject(it->second);
-	}
 
 	// Clean OpenCL Programs and Kernels
 	for (std::map<std::string, std::pair<cl_program,
@@ -144,9 +123,6 @@ void OCL_Device::PrintInfo()
 
 cl_command_queue OCL_Device::CreateQueue()
 {
-	if (m_main)
-		return m_main->CreateQueue();
-
 	std::unique_lock<std::mutex> lock(m_queues_lock);
 
 	if (m_queues_list.empty()) {
@@ -169,9 +145,6 @@ cl_command_queue OCL_Device::CreateQueue()
 
 void OCL_Device::DestroyQueue(cl_command_queue queue)
 {
-	if (m_main)
-		return m_main->DestroyQueue(queue);
-
 	std::unique_lock<std::mutex> lock(m_queues_lock);
 
 	if (m_queues_list.size() < 20)
@@ -226,6 +199,8 @@ void OCL_Device::SetBuildOptions(const char* sBuildOptions)
 
 cl_kernel OCL_Device::GetKernel(std::string sProgramName, std::string sKernelName)
 {
+	std::unique_lock<std::mutex> lock(m_kernels_lock);
+
 	if (m_kernels.find(sProgramName) == m_kernels.end())
 	{
 		// Build program
@@ -235,9 +210,7 @@ cl_kernel OCL_Device::GetKernel(std::string sProgramName, std::string sKernelNam
 		m_kernels[sProgramName] = std::pair<cl_program, std::map<std::string, cl_kernel> >(program, std::map<std::string, cl_kernel>());
 	}
 
-	if (m_kernels[sProgramName].second.find(sKernelName) == 
-		m_kernels[sProgramName].second.end())
-	{
+	if (m_kernels[sProgramName].second.find(sKernelName) == m_kernels[sProgramName].second.end()) {
 		// Create kernel
 		cl_int err;
 		cl_kernel kernel = clCreateKernel(m_kernels[sProgramName].first, sKernelName.c_str(), &err);     
@@ -248,58 +221,6 @@ cl_kernel OCL_Device::GetKernel(std::string sProgramName, std::string sKernelNam
 	}
 
 	return m_kernels[sProgramName].second[sKernelName];
-}
-
-cl_mem OCL_Device::DeviceMalloc(int idx, size_t size)
-{
-	LOG_DEBUG("OCL_Device::DeviceMalloc(%d, %zu)\n", idx, size);
-
-	cl_int err;
-	if (m_buffers.find(idx) != m_buffers.end())
-	{
-		err = clReleaseMemObject(m_buffers[idx]);
-		CHECK_OPENCL_ERROR(err);
-	}
-
-	cl_mem mem = clCreateBuffer(m_context, CL_MEM_READ_WRITE, size, NULL, 
-		&err);
-	CHECK_OPENCL_ERROR(err);
-
-	m_buffers[idx] = mem;
-	
-	return mem;
-}
-
-void OCL_Device::DeviceFree(int idx)
-{
-	LOG_DEBUG("OCL_Device::DeviceFree(%d)\n", idx);
-
-	cl_int err;
-	if (m_buffers.find(idx) != m_buffers.end())
-	{
-		err = clReleaseMemObject(m_buffers[idx]);
-		CHECK_OPENCL_ERROR(err);
-
-		m_buffers.erase(idx);
-	}
-}
-
-void OCL_Device::CopyBufferToDevice(cl_command_queue queue, void* h_Buffer, int idx, size_t size)
-{
-	LOG_DEBUG("OCL_Device::CopyBufferToDevice(%p, %d, %zu)\n", h_Buffer, idx, size);
-
-	cl_int err = clEnqueueWriteBuffer (queue, m_buffers[idx], CL_FALSE, 0, 
-		size, h_Buffer, 0, NULL, NULL);
-	CHECK_OPENCL_ERROR(err);
-}
-
-void OCL_Device::CopyBufferToHost(cl_command_queue queue, void* h_Buffer, int idx, size_t size)
-{
-	LOG_DEBUG("OCL_Device::CopyBufferToHost(%p, %d, %zu)\n", h_Buffer, idx, size);
-
-	cl_int err = clEnqueueReadBuffer (queue, m_buffers[idx], CL_FALSE, 0,
-		size, h_Buffer, 0, NULL, NULL);
-	CHECK_OPENCL_ERROR(err);
 }
 
 std::shared_ptr<OCL_Buffer> OCL_Device::CreateBuffer(size_t size)

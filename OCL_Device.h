@@ -29,21 +29,19 @@ public:
 class OCL_Device
 {
 private:
-	OCL_Device*			m_main;
 	cl_platform_id		m_platform_id;
 	cl_device_id		m_device_id;
 	cl_context			m_context;
 
 	std::string m_sBuildOptions;
 
+	std::mutex m_kernels_lock;
+	std::mutex m_queues_lock;
+
 	// Uniquely maps a kernel via a program name and a kernel name
 	std::map<std::string, std::pair<cl_program, 
 		std::map<std::string, cl_kernel> > > m_kernels;
 	
-	// Maps each buffer to a index
-	std::map<int, cl_mem> m_buffers;
-
-	std::mutex m_queues_lock;
 	std::list<cl_command_queue> m_queues_list;
 
 	cl_program GetProgramFromFile(std::string filename);
@@ -51,7 +49,6 @@ private:
 
 public:
 	OCL_Device(int iPlatformNum, int iDeviceNum);
-	OCL_Device(OCL_Device *main);
 	~OCL_Device(void);
 
 	cl_context GetContext();
@@ -63,11 +60,6 @@ public:
 
 	void SetBuildOptions (const char* sBuildOptions);
 	cl_kernel GetKernel(std::string filename, std::string sKernelName);
-
-	cl_mem DeviceMalloc(int idx, size_t size);
-	void DeviceFree(int idx);
-	void CopyBufferToDevice(cl_command_queue queue, void* h_Buffer, int idx, size_t size);
-	void CopyBufferToHost  (cl_command_queue queue, void* h_Buffer, int idx, size_t size);
 
 	std::shared_ptr<OCL_Buffer> CreateBuffer(size_t size);
 };
