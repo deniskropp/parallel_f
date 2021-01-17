@@ -1,4 +1,4 @@
-// === (C) 2020 === parallel_f / test_pause (tasks, queues, lists in parallel threads)
+// === (C) 2020/2021 === parallel_f / test_pause (tasks, queues, lists in parallel threads)
 // Written by Denis Oliver Kropp <Leichenbegatter@outlook.com>
 
 #include "parallel_f.hpp"
@@ -14,6 +14,12 @@ public:
 		:
 		thread(0)
 	{
+	}
+
+	virtual ~TestTask()
+	{
+		if (thread)
+			delete thread;
 	}
 
 protected:
@@ -43,6 +49,8 @@ protected:
 int main()
 {
 	parallel_f::setDebugLevel(0);
+
+	parallel_f::system::instance().setAutoFlush(parallel_f::system::AutoFlush::EndOfLine);
 
 
 	std::vector<std::shared_ptr<parallel_f::task_base>> tasks;
