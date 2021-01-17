@@ -7,6 +7,7 @@
 #include <list>
 #include <memory>
 
+#include <profileapi.h>
 #include <windows.h>
 
 #include "system.hpp"
@@ -19,24 +20,23 @@ namespace parallel_f {
 class sysclock
 {
 private:
-	SYSTEMTIME last;
+	LARGE_INTEGER frequency;
+	LARGE_INTEGER last;
 
 public:
 	sysclock()
 	{
-		GetLocalTime(&last);
+		QueryPerformanceFrequency(&frequency);
+		QueryPerformanceCounter(&last);
 	}
 
 	float reset()
 	{
-		SYSTEMTIME current;
+		LARGE_INTEGER current;
 
-		GetLocalTime(&current);
+		QueryPerformanceCounter(&current);
 
-		float ret = (current.wHour - last.wHour) * 60.0f * 24.0f +
-			(current.wMinute - last.wMinute) * 60.0f +
-			(current.wSecond - last.wSecond) +
-			(current.wMilliseconds - last.wMilliseconds) / 1000.0f;
+		float ret = (current.QuadPart - last.QuadPart) / (float) frequency.QuadPart;
 
 		last = current;
 
