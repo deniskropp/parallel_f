@@ -79,23 +79,8 @@ void RunObjects(__global struct object* obj, int n)
 }
 
 
-
-
-
-
-
-
-
-
-struct Runtime
-{
-};
-
-struct Call
-{
-};
-
 __kernel
-void Runtime_Main(__global struct Runtime* runtime, __global struct Call* calls, unsigned int num_calls)
+void TestBench(unsigned int n)
 {
+	for (volatile unsigned int i=0; i<n; i++);
 }

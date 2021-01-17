@@ -12,6 +12,8 @@ static void test_cl_queue();
 static void test_cl_list();
 static void test_cl_objects_simple();
 static void test_cl_objects_queue();
+static void test_cl_bench_latency();
+static void test_cl_bench_throughput();
 
 
 int main()
@@ -22,10 +24,10 @@ int main()
 //	parallel_f::setDebugLevel("task_queue::", 1);
 //	parallel_f::setDebugLevel("task_node::", 1);
 //	parallel_f::setDebugLevel("task_cl::cl_task::", 1);
-	parallel_f::setDebugLevel("task_cl::kernel_pre::", 1);
-	parallel_f::setDebugLevel("task_cl::kernel_exec::", 1);
-	parallel_f::setDebugLevel("task_cl::kernel_exec::run() <= Queue FINISHED", 1);
-	parallel_f::setDebugLevel("task_cl::kernel_post::", 1);
+//	parallel_f::setDebugLevel("task_cl::kernel_pre::", 1);
+//	parallel_f::setDebugLevel("task_cl::kernel_exec::", 1);
+//	parallel_f::setDebugLevel("task_cl::kernel_exec::run() <= Queue FINISHED", 1);
+//	parallel_f::setDebugLevel("task_cl::kernel_post::", 1);
 
 //	parallel_f::system::instance().setAutoFlush(parallel_f::system::AutoFlush::EndOfLine);
 //	parallel_f::system::instance().startFlushThread(10);
@@ -48,6 +50,14 @@ int main()
 	parallel_f::system::instance().flush();
 
 	test_cl_objects_queue();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
+
+	test_cl_bench_latency();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
+
+	test_cl_bench_throughput();
 	parallel_f::stats::instance::get().show_stats();
 	parallel_f::system::instance().flush();
 }
@@ -218,4 +228,64 @@ static void test_cl_objects_queue()
 	}
 
 	j.join();
+}
+
+
+// parallel_f :: task_cl == testing OpenCL kernel execution performance (latency)
+
+static void test_cl_bench_latency()
+{
+	parallel_f::task_queue tq;
+
+	auto kernel = task_cl::make_kernel("cltest.cl", "TestBench", 1, 1);
+
+	auto args = task_cl::make_args(new task_cl::kernel_args::kernel_arg_t<cl_uint>(1));
+
+	parallel_f::sysclock clock;
+
+	for (int i = 0; i < 10; i++) {
+		auto task = task_cl::kernel_exec::make_task(args, kernel);
+//		auto task = parallel_f::make_task([](unsigned int n) { for (volatile unsigned int i = 0; i < n;  i++); }, 1);
+
+		tq.push(task);
+
+		clock.reset();
+
+		tq.exec();
+
+		float latency = clock.reset();
+
+		parallel_f::logInfo("Kernel Execution Latency: %f seconds\n", latency);
+	}
+}
+
+
+// parallel_f :: task_cl == testing OpenCL kernel execution performance (throughput)
+
+static void test_cl_bench_throughput()
+{
+	parallel_f::task_queue tq;
+
+	auto kernel = task_cl::make_kernel("cltest.cl", "TestBench", 1, 1);
+
+	auto args = task_cl::make_args(new task_cl::kernel_args::kernel_arg_t<cl_uint>(1));
+
+	parallel_f::sysclock clock;
+
+	for (int n = 0; n < 10; n++) {
+		for (int i = 0; i < 20; i++) {
+			auto task = task_cl::kernel_exec::make_task(args, kernel);
+//			auto task = parallel_f::make_task([](unsigned int n) { for (volatile unsigned int i = 0; i < n;  i++); }, 1);
+
+			tq.push(task);
+		}
+
+		clock.reset();
+
+		tq.exec();
+
+		float duration = clock.reset();
+
+		parallel_f::logInfo("Kernel Execution Throughput: %f per second\n", 20.0f / duration);
+	}
 }
