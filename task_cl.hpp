@@ -249,23 +249,6 @@ public:
 		}
 	};
 
-	template <typename T>
-	class kernel_arg_value_t : public kernel_arg
-	{
-	public:
-		parallel_f::task_info::Value value;
-
-		kernel_arg_value_t<T>(parallel_f::task_info::Value value) : value(value) {}
-	};
-
-	class kernel_arg_value_mem : public kernel_arg
-	{
-	public:
-		parallel_f::task_info::Value value;
-
-		kernel_arg_value_mem(parallel_f::task_info::Value value) : value(value) {}
-	};
-
 public:
 	std::vector<std::shared_ptr<kernel_arg>> args;
 
