@@ -51,7 +51,7 @@ public:
 
 		queue.push(QueueElement(command_queue, done));
 
-		cond.notify_all();
+		cond.notify_one();
 	}
 
 public:
@@ -171,6 +171,15 @@ std::shared_ptr<kernel> make_kernel(std::string file, std::string name, size_t g
 	OCL_Device* pOCL_Device = system::instance().getDevice();
 
 	cl_kernel k = pOCL_Device->GetKernel(file, name);
+
+	return std::make_shared<kernel>(k, global_work_size, local_work_size);
+}
+
+std::shared_ptr<kernel> make_kernel_from_source(std::string source, std::string name, size_t global_work_size, size_t local_work_size)
+{
+	OCL_Device* pOCL_Device = system::instance().getDevice();
+
+	cl_kernel k = pOCL_Device->GetKernelFromSource(source, name);
 
 	return std::make_shared<kernel>(k, global_work_size, local_work_size);
 }

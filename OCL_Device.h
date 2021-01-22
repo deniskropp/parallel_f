@@ -60,6 +60,7 @@ public:
 
 	void SetBuildOptions (const char* sBuildOptions);
 	cl_kernel GetKernel(std::string filename, std::string sKernelName);
+	cl_kernel GetKernelFromSource(std::string source, std::string sKernelName);
 
 	std::shared_ptr<OCL_Buffer> CreateBuffer(size_t size);
 };

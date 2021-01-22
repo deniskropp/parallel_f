@@ -223,6 +223,19 @@ cl_kernel OCL_Device::GetKernel(std::string sProgramName, std::string sKernelNam
 	return m_kernels[sProgramName].second[sKernelName];
 }
 
+cl_kernel OCL_Device::GetKernelFromSource(std::string source, std::string sKernelName)
+{
+	// Build program
+	cl_program program = GetProgram(source);
+
+	// Create kernel
+	cl_int err;
+	cl_kernel kernel = clCreateKernel(program, sKernelName.c_str(), &err);
+	CHECK_OPENCL_ERROR(err);
+
+	return kernel;
+}
+
 std::shared_ptr<OCL_Buffer> OCL_Device::CreateBuffer(size_t size)
 {
 	LOG_DEBUG("OCL_Device::CreateBuffer(%zu)\n", size);
