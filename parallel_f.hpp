@@ -532,15 +532,15 @@ public:
 
 		std::unique_lock<std::mutex> lock(mutex);
 
-		for (auto node : nodes)
-			node.second->notify();
-
 		if (flush_join) {
 			LOG_DEBUG("task_list::finish() joining previous flush...\n");
 			flush_join->join();
 			LOG_DEBUG("task_list::finish() joined previous flush.\n");
 			flush_join.reset();
 		}
+
+		for (auto node : nodes)
+			node.second->notify();
 
 		if (!detached) {
 			for (auto node : nodes)
@@ -571,18 +571,18 @@ public:
 
 		flush_join = std::make_shared<task_node>("flush", make_task([]() {}), (unsigned int)(1 + nodes.size()), false);
 
+		if (prev_flush_join) {
+			LOG_DEBUG("task_list::flush() joining previous flush...\n");
+			prev_flush_join->join();
+			LOG_DEBUG("task_list::flush() joined previous flush.\n");
+		}
+
 		LOG_DEBUG("task_list::flush() flushing (notify) nodes...\n");
 
 		for (auto node : nodes) {
 			node.second->add_to_notify(flush_join);
 
 			node.second->notify();
-		}
-
-		if (prev_flush_join) {
-			LOG_DEBUG("task_list::flush() joining previous flush...\n");
-			prev_flush_join->join();
-			LOG_DEBUG("task_list::flush() joined previous flush.\n");
 		}
 
 		LOG_DEBUG("task_list::flush() clearing nodes...\n");
