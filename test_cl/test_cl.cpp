@@ -1,4 +1,4 @@
-// === (C) 2020 === parallel_f / test_cl (tasks, queues, lists in parallel threads)
+// === (C) 2020/2021 === parallel_f / test_cl (tasks, queues, lists in parallel threads)
 // Written by Denis Oliver Kropp <Leichenbegatter@outlook.com>
 
 #include <vector>
@@ -8,12 +8,13 @@
 
 
 
+static void test_cl_codegen();
+static void test_cl_bench_latency();
+static void test_cl_bench_throughput();
 static void test_cl_queue();
 static void test_cl_list();
 static void test_cl_objects_simple();
 static void test_cl_objects_queue();
-static void test_cl_bench_latency();
-static void test_cl_bench_throughput();
 
 
 int main()
@@ -32,6 +33,18 @@ int main()
 //	parallel_f::system::instance().setAutoFlush(parallel_f::system::AutoFlush::EndOfLine);
 //	parallel_f::system::instance().startFlushThread(10);
 
+
+	test_cl_codegen();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
+
+	test_cl_bench_latency();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
+
+	test_cl_bench_throughput();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
 
 	for (int i = 0; i < 3; i++) {
 		test_cl_queue();
@@ -52,14 +65,51 @@ int main()
 	test_cl_objects_queue();
 	parallel_f::stats::instance::get().show_stats();
 	parallel_f::system::instance().flush();
+}
 
-	test_cl_bench_latency();
-	parallel_f::stats::instance::get().show_stats();
-	parallel_f::system::instance().flush();
 
-	test_cl_bench_throughput();
-	parallel_f::stats::instance::get().show_stats();
-	parallel_f::system::instance().flush();
+// parallel_f :: task_cl == testing OpenCL kernel execution (from genrated code)
+
+static void test_cl_codegen()
+{
+	std::stringstream ss;
+
+	ss << "int sum(int a, int b) { return a + b; }\n";
+
+	ss << "__kernel void sums(__global int *aa, __global int *bb, __global int *cc, int n)\n";
+	ss << "{\n";
+	ss << "    int idx = get_global_id(0);\n";
+	ss << "\n";
+	ss << "    if (idx < n)\n";
+	ss << "        cc[idx] = sum(aa[idx], bb[idx]);\n";
+	ss << "}\n";
+
+	std::vector<int> aa(1024);
+	std::vector<int> bb(1024);
+	std::vector<int> cc(1024);
+
+	for (int i = 0; i < 1024; i++) {
+		aa[i] = i * 123;
+		bb[i] = i * 345;
+	}
+
+	auto kernel = task_cl::make_kernel_from_source(ss.str(), "sums", aa.size(), 256);
+
+	auto args = task_cl::make_args(new task_cl::kernel_args::kernel_arg_mem(aa.size(), aa.data(), NULL),
+								   new task_cl::kernel_args::kernel_arg_mem(bb.size(), bb.data(), NULL),
+								   new task_cl::kernel_args::kernel_arg_mem(cc.size(), NULL, cc.data()),
+								   new task_cl::kernel_args::kernel_arg_t<cl_int>((cl_int)aa.size()));
+
+	auto task_pre = task_cl::kernel_pre::make_task(args);
+	auto task_exec = task_cl::kernel_exec::make_task(args, kernel);
+	auto task_post = task_cl::kernel_post::make_task(args);
+
+	parallel_f::task_queue tq;
+
+	tq.push(task_pre);
+	tq.push(task_exec);
+	tq.push(task_post);
+	tq.exec();
 }
 
 
