@@ -198,6 +198,7 @@ private:
 		switch (parallel_f::getDebugLevel()) {
 		case 2:
 			arg.task->finish();
+			/* fall through */
 		case 1:
 			LOG_DEBUG("task_info::task_info():   Type: Value( %s )\n", arg.get<std::any>().type().name());
 			break;
@@ -536,11 +537,14 @@ public:
 			LOG_DEBUG("task_list::finish() joining previous flush...\n");
 			flush_join->join();
 			LOG_DEBUG("task_list::finish() joined previous flush.\n");
-			flush_join.reset();
 		}
 
-		for (auto node : nodes)
-			node.second->notify();
+		for (auto node : nodes) {
+			if (node.second != flush_join)
+				node.second->notify();
+		}
+
+		flush_join.reset();
 
 		if (!detached) {
 			for (auto node : nodes)
@@ -569,7 +573,10 @@ public:
 
 		std::shared_ptr<task_node> prev_flush_join = flush_join;
 
-		flush_join = std::make_shared<task_node>("flush", make_task([]() {}), (unsigned int)(1 + nodes.size()), false);
+		if (flush_join)
+			flush_join = std::make_shared<task_node>("flush", make_task([]() {}), (unsigned int)(1 + nodes.size() - 1), false);
+		else
+			flush_join = std::make_shared<task_node>("flush", make_task([]() {}), (unsigned int)(1 + nodes.size()), false);
 
 		if (prev_flush_join) {
 			LOG_DEBUG("task_list::flush() joining previous flush...\n");
@@ -580,9 +587,11 @@ public:
 		LOG_DEBUG("task_list::flush() flushing (notify) nodes...\n");
 
 		for (auto node : nodes) {
-			node.second->add_to_notify(flush_join);
+			if (node.second != prev_flush_join) {
+				node.second->add_to_notify(flush_join);
 
-			node.second->notify();
+				node.second->notify();
+			}
 		}
 
 		LOG_DEBUG("task_list::flush() clearing nodes...\n");
@@ -594,6 +603,8 @@ public:
 		task_id flush_id = ++ids;
 
 		nodes[flush_id] = flush_join;
+
+		flush_join->notify();
 
 		LOG_DEBUG("task_list::flush() done.\n");
 
