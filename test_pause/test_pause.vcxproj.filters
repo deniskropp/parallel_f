@@ -18,8 +18,5 @@
     <ClCompile Include="test_pause.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\parallel_f.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
 </Project>

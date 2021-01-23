@@ -146,7 +146,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\OCL_Device.cpp" />
-    <ClCompile Include="..\parallel_f.cpp" />
     <ClCompile Include="..\Util.cpp" />
     <ClCompile Include="Grafx.cpp" />
   </ItemGroup>
@@ -154,6 +153,9 @@
     <ClInclude Include="..\OCL_Device.h" />
     <ClInclude Include="..\task_cl.hpp" />
     <ClInclude Include="..\Util.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="grafx.cl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
