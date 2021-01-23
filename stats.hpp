@@ -133,24 +133,36 @@ public:
 
 	void show_stats()
 	{
-		float total_load = 0.0f;
-		float total_busy = 0.0f;
-		unsigned int total_num = 0;
-
-		for (auto s : stats) {
-			system::instance().log("Load '%s': %.3f (%u vthreads)\n", s->get_name().c_str(), s->get_load(), s->get_num());
-
-			total_load += s->get_load();
-			total_busy += s->get_busy();
-			total_num += s->get_num();
-
-			s->reset();
-		}
-	
 		float total_seconds = total.reset();
 
-		system::instance().log("Load all: %.3f (%u vthreads), total busy %.3f%% (%.3f seconds)\n",
-							   total_load, total_num, (total_busy / total_seconds) * 100.0f, total_seconds);
+		std::map<std::string, std::list<std::shared_ptr<stat>>> groups;
+
+		for (auto s : stats) {
+			std::string group = s->get_name().substr(0, s->get_name().find("."));
+
+			groups[group].push_back(s);
+		}
+
+		for (auto g : groups) {
+			float total_load = 0.0f;
+			float total_busy = 0.0f;
+			unsigned int total_num = 0;
+
+			for (auto s : g.second) {
+				system::instance().log("Load '%s': %.3f (%u vthreads)\n",
+									   s->get_name().c_str(), s->get_load(), s->get_num());
+
+				total_load += s->get_load();
+				total_busy += s->get_busy();
+				total_num += s->get_num();
+
+				s->reset();
+			}
+
+			system::instance().log("Load '%s' (all): %.3f (%u vthreads), total busy %.3f%% (%.3f seconds)\n",
+								   g.first.c_str(), total_load, total_num, (total_busy / total_seconds) * 100.0f,
+								   total_seconds);
+		}
 	}
 };
 
