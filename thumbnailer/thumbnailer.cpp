@@ -11,45 +11,45 @@
 int main()
 {
 	auto func_load = [](std::string filename) {
-		sf::Image image;
+		std::shared_ptr<sf::Image> image = std::make_shared<sf::Image>();
 
 		parallel_f::logInfoF("Load %s...\n", filename.c_str());
 
-		image.loadFromFile(filename);
+		image->loadFromFile(filename);
 
 		return image;
 	};
 
 	auto func_scale = [](std::string filename, auto img) {
-		sf::Image image = img.get<sf::Image>();
+		std::shared_ptr<sf::Image> image = img.get<std::shared_ptr<sf::Image>>();
 
-		parallel_f::logInfoF("Scale %s...\n", filename.c_str());
+		parallel_f::logInfoF("Scale %s... (%ux%u->%ux%u)\n", filename.c_str(), image->getSize().x, image->getSize().y, image->getSize().x/20, image->getSize().y/20);
 
 		sf::RenderTexture thumb_render;
 
-		thumb_render.create(image.getSize().x / 20, image.getSize().y / 20);
+		thumb_render.create(image->getSize().x / 20, image->getSize().y / 20);
 
 		sf::Texture tex;
 		sf::Sprite sprite;
 
-		tex.loadFromImage(image);
+		tex.loadFromImage(*image);
 
 		sprite.setTexture(tex);
 		sprite.setScale(.05f, .05f);
 
 		thumb_render.draw(sprite);
 
-		sf::Image thumb = thumb_render.getTexture().copyToImage();
+		std::shared_ptr<sf::Image> thumb = std::make_shared<sf::Image>(thumb_render.getTexture().copyToImage());
 
 		return thumb;
 	};
 
 	auto func_store = [](auto img, std::string filename) {
-		sf::Image image = img.get<sf::Image>();
+		std::shared_ptr<sf::Image> image = img.get<std::shared_ptr<sf::Image>>();
 
 		parallel_f::logInfoF("Store %s...\n", filename.c_str());
 
-		image.saveToFile(filename);
+		image->saveToFile(filename);
 	};
 
 
