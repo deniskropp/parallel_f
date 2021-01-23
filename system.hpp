@@ -43,7 +43,8 @@ public:
 	system()
 		:
 		debug_level(0),
-		flog(AutoFlush::Never)
+		flog(AutoFlush::Never),
+		flushThreadStop(false)
 	{
 	}
 
@@ -129,8 +130,6 @@ public:
 	void startFlushThread(unsigned int ms)
 	{
 		if (!flushThread) {
-			flushThreadStop = false;
-
 			flushThread = std::make_unique<std::thread>([this, ms]() {
 				while (!flushThreadStop) {
 					std::this_thread::sleep_for(std::chrono::milliseconds(ms));
