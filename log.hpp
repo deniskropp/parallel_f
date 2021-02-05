@@ -13,9 +13,7 @@ namespace parallel_f {
 
 #define PARALLEL_F__LOG(Sym)												\
 	do {																	\
-		SYSTEMTIME ST;														\
-																			\
-		GetLocalTime(&ST);													\
+		float t = system::get_time();										\
 																			\
 																			\
 		char buf[1024];														\
@@ -27,9 +25,9 @@ namespace parallel_f {
 																			\
 		std::stringstream tid; tid << std::this_thread::get_id();			\
 																			\
-		system::instance().log("(" #Sym ") [%02d:%02d:%02d.%03d] (%5s) %s",	\
-							   ST.wHour, ST.wMinute, ST.wSecond,			\
-							   ST.wMilliseconds, tid.str().c_str(), buf);	\
+		system::instance().log("(" #Sym ") [%7.3f] (%5s) %s",	            \
+							   t,                                           \
+							   tid.str().c_str(), buf);	                    \
 	} while (0)
 
 
@@ -78,7 +76,7 @@ static inline std::string logString(ArgType arg)
 }
 
 template <>
-static inline std::string logString(const char* arg)
+inline std::string logString(const char* arg)
 {
 	return arg;
 }
