@@ -7,9 +7,6 @@
 #include <list>
 #include <memory>
 
-#include <profileapi.h>
-#include <windows.h>
-
 #include "system.hpp"
 
 
@@ -17,34 +14,6 @@
 
 namespace parallel_f {
 
-class sysclock
-{
-private:
-	LARGE_INTEGER frequency;
-	LARGE_INTEGER last;
-
-public:
-	sysclock()
-	{
-		QueryPerformanceFrequency(&frequency);
-		QueryPerformanceCounter(&last);
-	}
-
-	float reset()
-	{
-		LARGE_INTEGER current;
-
-		QueryPerformanceCounter(&current);
-
-		float ret = (current.QuadPart - last.QuadPart) / (float) frequency.QuadPart;
-
-		last = current;
-
-		return ret;
-	}
-};
-
-	
 namespace stats {
 
 class stat
@@ -116,12 +85,18 @@ public:
 	}
 
 private:
+	std::mutex lock;
 	std::list<std::shared_ptr<stat>> stats;
 	sysclock total;
+
+private:
+	instance() {}
 
 public:
 	std::shared_ptr<stat> make_stat(std::string name)
 	{
+		std::unique_lock<std::mutex> l(lock);
+
 		auto s = std::make_shared<stat>(name);
 
 		stats.push_back(s);
@@ -133,6 +108,8 @@ public:
 
 	void show_stats()
 	{
+		std::unique_lock<std::mutex> l(lock);
+
 		float total_seconds = total.reset();
 
 		std::map<std::string, std::list<std::shared_ptr<stat>>> groups;
