@@ -53,7 +53,7 @@ public:
 		LOG_DEBUG("task_base::handle_finished(%p, %s)\n", this, f.target_type().name());
 
 		std::unique_lock<std::mutex> lock(mutex);
-		
+
 		size_t index = on_finished.size();
 
 		on_finished.push_back(f);
@@ -109,7 +109,7 @@ protected:
 	void enter_state(task_state state)
 	{
 		LOG_DEBUG("task_base::enter_state(%p, %d)\n", this, state);
-		
+
 		std::unique_lock<std::mutex> lock(mutex);
 
 		if (this->state == state)
@@ -142,26 +142,26 @@ protected:
 class task_info : public task_base, public std::enable_shared_from_this<task_info>
 {
 public:
-	class Value
-	{
-		friend task_info;
+    class Value
+    {
+        friend class task_info;
 
-	private:
-		std::shared_ptr<task_info> task;
+    private:
+        std::shared_ptr<task_info> task;
 
-	public:
-		Value(std::shared_ptr<task_info> task) : task(task) {}
+    public:
+        Value(std::shared_ptr<task_info> task) : task(task) {}
 
-		template <typename _T>
-		_T get() {
-			return std::any_cast<_T>(task->value);
-		}
+        template <typename _T>
+        _T get() {
+	        return std::any_cast<_T>(task->value);
+        }
 
-		template <>
-		std::any get() {
-			return task->value;
-		}
-	};
+        //template <>
+        //std::any get() {
+        //    return task->value;
+        //}
+    };
 
 protected:
 	std::any value;
@@ -191,22 +191,23 @@ private:
 	{
 		LOG_DEBUG("task_info::task_info():   Type: %s\n", typeid(ArgType).name());
 	}
-
-	template <>
-	void DumpArg(Value arg)
-	{
-		switch (parallel_f::getDebugLevel()) {
-		case 2:
-			arg.task->finish();
-			/* fall through */
-		case 1:
-			LOG_DEBUG("task_info::task_info():   Type: Value( %s )\n", arg.get<std::any>().type().name());
-			break;
-		case 0:
-			break;
-		}
-	}
 };
+
+template <>
+inline void task_info::DumpArg(Value arg)
+{
+	switch (parallel_f::getDebugLevel()) {
+	case 2:
+		arg.task->finish();
+		/* fall through */
+	case 1:
+		LOG_DEBUG("task_info::task_info():   Type: Value( %s )\n", arg.get<std::any>().type().name());
+		break;
+	case 0:
+		break;
+	}
+}
+
 
 template <typename Callable, typename... Args>
 class task : public task_info
@@ -354,7 +355,7 @@ public:
 	void notify()
 	{
 		LOG_DEBUG("task_node::notify(%p '%s')...\n", this, get_name().c_str());
-		
+
 		std::unique_lock<std::mutex> l(lock);
 
 		LOG_DEBUG("task_node::notify(%p '%s') wait count %u -> %u\n", this, get_name().c_str(), wait, wait-1);
@@ -409,7 +410,7 @@ private:
 public:
 	task_queue() {}
 
-	void push(std::shared_ptr<task_base> task, bool reset = true)
+	void push(std::shared_ptr<task_base> task)
 	{
 		LOG_DEBUG("task_queue::push()\n");
 
@@ -455,6 +456,66 @@ public:
 		return joinable([f,l]() {
 			l->join();
 		});
+	}
+};
+
+
+class task_queue_simple
+{
+private:
+	std::vector<std::shared_ptr<task_base>> tasks;
+	std::mutex lock;
+
+public:
+	task_queue_simple() {}
+
+	void push(std::shared_ptr<task_base> task)
+	{
+		LOG_DEBUG("task_queue_simple::push()\n");
+
+		std::unique_lock<std::mutex> l(lock);
+
+		tasks.push_back(task);
+	}
+
+	void exec()
+	{
+		LOG_DEBUG("task_queue_simple::exec()\n");
+
+		std::unique_lock<std::mutex> l(lock);
+
+		std::vector<std::shared_ptr<task_base>> q = tasks;
+
+		tasks.clear();
+
+		l.unlock();
+
+		run(q);
+	}
+
+private:
+	static void run(std::vector<std::shared_ptr<task_base>>& q)
+	{
+		for (auto t : q) {
+			if (!t->finish()) {
+				std::mutex lock;
+				std::condition_variable cond;
+				bool finished = false;
+
+				std::unique_lock<std::mutex> l(lock);
+
+				t->handle_finished([&lock,&cond,&finished]() {
+						std::unique_lock<std::mutex> l(lock);
+
+						finished = true;
+
+						cond.notify_one();
+					});
+
+				while (!finished)
+					cond.wait(l);
+			}
+		}
 	}
 };
 
