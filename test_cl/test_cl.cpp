@@ -9,8 +9,13 @@
 
 
 static void test_cl_codegen();
+
+template <typename Tq = parallel_f::task_queue>
 static void test_cl_bench_latency();
+
+template <typename Tq = parallel_f::task_queue>
 static void test_cl_bench_throughput();
+
 static void test_cl_queue();
 static void test_cl_list();
 static void test_cl_objects_simple();
@@ -34,15 +39,23 @@ int main()
 //	parallel_f::system::instance().startFlushThread(10);
 
 
+	test_cl_bench_latency<parallel_f::task_queue>();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
+
+	test_cl_bench_throughput<parallel_f::task_queue>();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
+
+	test_cl_bench_latency<parallel_f::task_queue_simple>();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
+
+	test_cl_bench_throughput<parallel_f::task_queue_simple>();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
+
 	test_cl_codegen();
-	parallel_f::stats::instance::get().show_stats();
-	parallel_f::system::instance().flush();
-
-	test_cl_bench_latency();
-	parallel_f::stats::instance::get().show_stats();
-	parallel_f::system::instance().flush();
-
-	test_cl_bench_throughput();
 	parallel_f::stats::instance::get().show_stats();
 	parallel_f::system::instance().flush();
 
@@ -283,9 +296,10 @@ static void test_cl_objects_queue()
 
 // parallel_f :: task_cl == testing OpenCL kernel execution performance (latency)
 
+template <typename Tq>
 static void test_cl_bench_latency()
 {
-	parallel_f::task_queue tq;
+	Tq tq;
 
 	auto kernel = task_cl::make_kernel("cltest.cl", "TestBench", 1, 1);
 
@@ -312,9 +326,10 @@ static void test_cl_bench_latency()
 
 // parallel_f :: task_cl == testing OpenCL kernel execution performance (throughput)
 
+template <typename Tq>
 static void test_cl_bench_throughput()
 {
-	parallel_f::task_queue tq;
+	Tq tq;
 
 	auto kernel = task_cl::make_kernel("cltest.cl", "TestBench", 1, 1);
 
