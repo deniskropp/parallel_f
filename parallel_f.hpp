@@ -156,11 +156,6 @@ public:
 		_T get() {
 			return std::any_cast<_T>(task->value);
 		}
-
-		template <>
-		std::any get() {
-			return task->value;
-		}
 	};
 
 protected:
@@ -191,22 +186,28 @@ private:
 	{
 		LOG_DEBUG("task_info::task_info():   Type: %s\n", typeid(ArgType).name());
 	}
-
-	template <>
-	void DumpArg(Value arg)
-	{
-		switch (parallel_f::getDebugLevel()) {
-		case 2:
-			arg.task->finish();
-			/* fall through */
-		case 1:
-			LOG_DEBUG("task_info::task_info():   Type: Value( %s )\n", arg.get<std::any>().type().name());
-			break;
-		case 0:
-			break;
-		}
-	}
 };
+
+template <>
+inline std::any task_info::Value::get() {
+	return task->value;
+}
+
+template <>
+inline void task_info::DumpArg(Value arg)
+{
+	switch (parallel_f::getDebugLevel()) {
+	case 2:
+		arg.task->finish();
+		/* fall through */
+	case 1:
+		LOG_DEBUG("task_info::task_info():   Type: Value( %s )\n", arg.get<std::any>().type().name());
+		break;
+	case 0:
+		break;
+	}
+}
+
 
 template <typename Callable, typename... Args>
 class task : public task_info
