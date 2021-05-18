@@ -79,7 +79,7 @@ static inline std::string logString(ArgType arg)
 }
 
 template <>
-static inline std::string logString(const char* arg)
+inline std::string logString(const char* arg)
 {
 	return arg;
 }
