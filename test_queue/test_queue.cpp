@@ -21,7 +21,7 @@ int main()
 		return "Hello World";
 	};
 
-	auto func2 = [](auto msg) -> std::string
+	auto func2 = [](parallel_f::task_info::Value msg) -> std::string
 	{
 		parallel_f::logInfo("Second function receiving '%s'\n", msg.get<std::string>().c_str());
 
@@ -30,7 +30,7 @@ int main()
 		return "Good bye";
 	};
 
-	auto func3 = [](auto msg) -> std::string
+	auto func3 = [](parallel_f::task_info::Value msg) -> std::string
 	{
 		parallel_f::logInfo("Third function receiving '%s'\n", msg.get<std::string>().c_str());
 
