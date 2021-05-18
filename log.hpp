@@ -41,6 +41,9 @@ namespace parallel_f {
 #define LOG_DEBUG(...)		do {} while (0)
 #endif
 
+#define LOG_INFO(...)		parallel_f::logInfoF(__VA_ARGS__)
+
+
 static inline void logDebug(const char* fmt, ...)
 {
 	if (getDebugLevel() == 0 && getDebugLevel(fmt) == 0)
