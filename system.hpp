@@ -1,15 +1,23 @@
-// === (C) 2020 === parallel_f / system (tasks, queues, lists in parallel threads)
+// === (C) 2020/2021 === parallel_f / system (tasks, queues, lists in parallel threads)
 // Written by Denis Oliver Kropp <Leichenbegatter@outlook.com>
 
 #pragma once
 
 #include <iostream>
+#include <map>
+#include <memory>
 #include <mutex>
 #include <sstream>
+#include <string>
 #include <thread>
 
 #include <stdarg.h>
+
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <sys/time.h>
+#endif
 
 
 // parallel_f :: system == implementation
@@ -31,6 +39,25 @@ public:
 		Always,
 		EndOfLine
 	};
+
+public:
+	/* returns local time of day in ms (0-86399999) */
+	static unsigned int localtime_ms()
+	{
+#ifdef _WIN32
+		SYSTEMTIME ST;
+
+		GetLocalTime(&ST);
+
+		return ST.wHour * 60 * 60 * 1000 + ST.wMinute * 60 * 1000 + ST.wSecond * 1000 + ST.wMilliseconds;
+#else
+		struct timeval tv;
+
+		gettimeofday(&tv, NULL);
+
+		return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+#endif
+	}
 
 private:
 	int debug_level;
