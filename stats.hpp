@@ -7,8 +7,12 @@
 #include <list>
 #include <memory>
 
+#ifdef _WIN32
 #include <profileapi.h>
 #include <windows.h>
+#else
+#include <sys/time.h>
+#endif
 
 #include "system.hpp"
 
@@ -17,6 +21,7 @@
 
 namespace parallel_f {
 
+#ifdef _WIN32
 class sysclock
 {
 private:
@@ -43,8 +48,35 @@ public:
 		return ret;
 	}
 };
+#else
+class sysclock
+{
+private:
+	struct timeval last;
 
-	
+public:
+	sysclock()
+	{
+	    gettimeofday(&last, NULL);
+	}
+
+	float reset()
+	{
+	    struct timeval now;
+
+	    gettimeofday(&now, NULL);
+
+
+		float ret = (now.tv_sec - last.tv_sec) + (now.tv_usec - last.tv_usec) / 1000000.0f;
+
+		last = now;
+
+		return ret;
+	}
+};
+#endif
+
+
 namespace stats {
 
 class stat
