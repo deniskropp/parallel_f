@@ -8,13 +8,29 @@
 
 
 
+static void test_cl_init();
+
 static void test_cl_codegen();
-static void test_cl_bench_latency();
-static void test_cl_bench_throughput();
+
 static void test_cl_queue();
 static void test_cl_list();
 static void test_cl_objects_simple();
 static void test_cl_objects_queue();
+
+template <typename Tq = parallel_f::task_queue>
+static void test_cl_bench_latency();
+
+template <typename Tq = parallel_f::task_queue>
+static void test_cl_bench_throughput();
+
+
+#define RUN(x)	\
+	do {													\
+		LOG_INFO("Running '%s'...\n", #x);					\
+		x;													\
+		parallel_f::stats::instance::get().show_stats();	\
+		parallel_f::system::instance().flush();				\
+	} while (0)
 
 
 int main()
@@ -33,38 +49,31 @@ int main()
 //	parallel_f::system::instance().setAutoFlush(parallel_f::system::AutoFlush::EndOfLine);
 //	parallel_f::system::instance().startFlushThread(10);
 
+	RUN(test_cl_init());
 
-	test_cl_codegen();
-	parallel_f::stats::instance::get().show_stats();
-	parallel_f::system::instance().flush();
+	RUN(test_cl_codegen());
 
-	test_cl_bench_latency();
-	parallel_f::stats::instance::get().show_stats();
-	parallel_f::system::instance().flush();
+	RUN(test_cl_bench_latency<parallel_f::task_queue>());
 
-	test_cl_bench_throughput();
-	parallel_f::stats::instance::get().show_stats();
-	parallel_f::system::instance().flush();
+	RUN(test_cl_bench_throughput<parallel_f::task_queue>());
 
-	for (int i = 0; i < 3; i++) {
-		test_cl_queue();
-		parallel_f::stats::instance::get().show_stats();
-		parallel_f::system::instance().flush();
-	}
+	for (int i = 0; i < 3; i++)
+		RUN(test_cl_queue());
 
-	for (int i = 0; i < 3; i++) {
-		test_cl_list();
-		parallel_f::stats::instance::get().show_stats();
-		parallel_f::system::instance().flush();
-	}
+	for (int i = 0; i < 3; i++)
+		RUN(test_cl_list());
 
-	test_cl_objects_simple();
-	parallel_f::stats::instance::get().show_stats();
-	parallel_f::system::instance().flush();
+	RUN(test_cl_objects_simple());
 
-	test_cl_objects_queue();
-	parallel_f::stats::instance::get().show_stats();
-	parallel_f::system::instance().flush();
+	RUN(test_cl_objects_queue());
+}
+
+
+// parallel_f :: task_cl == minimal code to explicitly run setup (done once initially)
+
+static void test_cl_init()
+{
+	task_cl::system::instance();
 }
 
 
@@ -283,9 +292,10 @@ static void test_cl_objects_queue()
 
 // parallel_f :: task_cl == testing OpenCL kernel execution performance (latency)
 
+template <typename Tq>
 static void test_cl_bench_latency()
 {
-	parallel_f::task_queue tq;
+	Tq tq;
 
 	auto kernel = task_cl::make_kernel("cltest.cl", "TestBench", 1, 1);
 
@@ -312,9 +322,10 @@ static void test_cl_bench_latency()
 
 // parallel_f :: task_cl == testing OpenCL kernel execution performance (throughput)
 
+template <typename Tq>
 static void test_cl_bench_throughput()
 {
-	parallel_f::task_queue tq;
+	Tq tq;
 
 	auto kernel = task_cl::make_kernel("cltest.cl", "TestBench", 1, 1);
 
