@@ -13,9 +13,7 @@ namespace parallel_f {
 
 #define PARALLEL_F__LOG(Sym)												\
 	do {																	\
-		SYSTEMTIME ST;														\
-																			\
-		GetLocalTime(&ST);													\
+		unsigned int ms = system::localtime_ms();											\
 																			\
 																			\
 		char buf[1024];														\
@@ -28,8 +26,8 @@ namespace parallel_f {
 		std::stringstream tid; tid << std::this_thread::get_id();			\
 																			\
 		system::instance().log("(" #Sym ") [%02d:%02d:%02d.%03d] (%5s) %s",	\
-							   ST.wHour, ST.wMinute, ST.wSecond,			\
-							   ST.wMilliseconds, tid.str().c_str(), buf);	\
+							   ms/1000/60/60, ms/1000/60%60, ms/1000%60,			\
+							   ms%1000, tid.str().c_str(), buf);	\
 	} while (0)
 
 
