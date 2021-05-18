@@ -12,6 +12,7 @@
 #include <thread>
 
 #include <stdarg.h>
+#include <string.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -114,7 +115,7 @@ public:
 
 		va_list args;
 		va_start(args, fmt);
-		vsnprintf(buf, sizeof(buf), fmt, args);
+		vsnprintf(buf, sizeof(buf), fmt, args);	// FIXME: handle return value (overflow etc)
 		va_end(args);
 
 		std::unique_lock<std::mutex> lock(llog);
