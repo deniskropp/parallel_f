@@ -1,4 +1,4 @@
-// === (C) 2020 === parallel_f / test_flush_join (tasks, queues, lists in parallel threads)
+// === (C) 2020/2021 === parallel_f / test_flush_join (tasks, queues, lists in parallel threads)
 // Written by Denis Oliver Kropp <Leichenbegatter@outlook.com>
 
 #include "parallel_f.hpp"
@@ -16,7 +16,7 @@ int main()
 //	parallel_f::setDebugLevel("task_queue::", 1);
 //	parallel_f::setDebugLevel("task_node::", 1);
 
-//	parallel_f::system::instance().setAutoFlush(parallel_f::system::AutoFlush::EndOfLine);
+	parallel_f::system::instance().setAutoFlush(parallel_f::system::AutoFlush::EndOfLine);
 //	parallel_f::system::instance().startFlushThread(100);
 
 
@@ -38,16 +38,18 @@ static void test_flush()
 
 	parallel_f::task_id flush_id = 0;
 
-	for (int i = 0; i < 10; i++) {
-		auto task = parallel_f::make_task([]() {
-			parallel_f::logInfo("### task running...\n");
+	for (int i = 0; i < 40; i++) {
+		for (int n = 0; n < 3; n++) {
+			auto task = parallel_f::make_task([]() {
+					parallel_f::logInfo("### task running...\n");
 
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+					std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-			parallel_f::logInfo("### task ending...\n");
-		});
+					parallel_f::logInfo("### task ending...\n");
+				});
 
-		tl.append(task, flush_id);
+			tl.append(task, flush_id);
+		}
 
 		//tl.flush(); // using this line instead of the line below (or not passing flush_id in above line) increases parallelism
 		flush_id = tl.flush();
