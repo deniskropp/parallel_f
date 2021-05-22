@@ -1,10 +1,12 @@
 // === (C) 2020/2021 === parallel_f / test_cl (tasks, queues, lists in parallel threads)
 // Written by Denis Oliver Kropp <Leichenbegatter@outlook.com>
 
+#include <sstream>
 #include <vector>
 
 #include "parallel_f.hpp"
 #include "task_cl.hpp"
+#include "test_utils.hpp"
 
 
 
@@ -22,15 +24,6 @@ static void test_cl_bench_latency();
 
 template <typename Tq = parallel_f::task_queue>
 static void test_cl_bench_throughput();
-
-
-#define RUN(x)	\
-	do {													\
-		LOG_INFO("Running '%s'...\n", #x);					\
-		x;													\
-		parallel_f::stats::instance::get().show_stats();	\
-		parallel_f::system::instance().flush();				\
-	} while (0)
 
 
 int main()
