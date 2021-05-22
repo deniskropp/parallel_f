@@ -14,6 +14,15 @@ static void test_cl_init();
 
 static void test_cl_codegen();
 
+<<<<<<< HEAD
+=======
+template <typename Tq = parallel_f::task_queue>
+static void test_cl_bench_latency();
+
+template <typename Tq = parallel_f::task_queue>
+static void test_cl_bench_throughput();
+
+>>>>>>> e37acf9dbe2063ff1e7561c2c2cb5f3f436d3db4
 static void test_cl_queue();
 static void test_cl_list();
 static void test_cl_objects_simple();
@@ -44,11 +53,33 @@ int main()
 
 	RUN(test_cl_init());
 
+<<<<<<< HEAD
 	RUN(test_cl_codegen());
 
 	RUN(test_cl_bench_latency<parallel_f::task_queue>());
 
 	RUN(test_cl_bench_throughput<parallel_f::task_queue>());
+=======
+	test_cl_bench_latency<parallel_f::task_queue>();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
+
+	test_cl_bench_throughput<parallel_f::task_queue>();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
+
+	test_cl_bench_latency<parallel_f::task_queue_simple>();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
+
+	test_cl_bench_throughput<parallel_f::task_queue_simple>();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
+
+	test_cl_codegen();
+	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
+>>>>>>> e37acf9dbe2063ff1e7561c2c2cb5f3f436d3db4
 
 	for (int i = 0; i < 3; i++)
 		RUN(test_cl_queue());

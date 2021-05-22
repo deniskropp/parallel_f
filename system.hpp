@@ -11,10 +11,18 @@
 #include <string>
 #include <thread>
 
+#include <string.h>
+
 #include <stdarg.h>
+<<<<<<< HEAD
 #include <string.h>
 
 #ifdef _WIN32
+=======
+
+#ifdef _WIN32
+#include <profileapi.h>
+>>>>>>> e37acf9dbe2063ff1e7561c2c2cb5f3f436d3db4
 #include <windows.h>
 #else
 #include <sys/time.h>
@@ -24,6 +32,92 @@
 // parallel_f :: system == implementation
 
 namespace parallel_f {
+
+#ifdef _WIN32
+class sysclock
+{
+private:
+	LARGE_INTEGER frequency;
+	LARGE_INTEGER last;
+
+public:
+	sysclock()
+	{
+		QueryPerformanceFrequency(&frequency);
+		QueryPerformanceCounter(&last);
+	}
+
+	float reset()
+	{
+		LARGE_INTEGER current;
+
+		QueryPerformanceCounter(&current);
+
+		float ret = (current.QuadPart - last.QuadPart) / (float) frequency.QuadPart;
+
+		last = current;
+
+		return ret;
+	}
+
+	float get()
+	{
+		LARGE_INTEGER current;
+
+		QueryPerformanceCounter(&current);
+
+		float ret = (current.QuadPart - last.QuadPart) / (float) frequency.QuadPart;
+
+	//	last = current;
+
+		return ret;
+	}
+};
+#else
+class sysclock
+{
+private:
+    long long last_us;
+
+    static long long get_us()
+    {
+        struct timeval tv;
+
+        gettimeofday(&tv, NULL);
+
+        return tv.tv_sec * 1000000LL + (long long) tv.tv_usec;
+    }
+
+public:
+	sysclock()
+	{
+	    last_us = get_us();
+	}
+
+	float reset()
+	{
+		long long current = get_us();
+
+		float ret = (current - last_us) / 1000000.0f;
+
+		last_us = current;
+
+		return ret;
+	}
+
+	float get()
+	{
+		long long current = get_us();
+
+		float ret = (current - last_us) / 1000000.0f;
+
+	//	last_us = current;
+
+		return ret;
+	}
+};
+#endif
+
 
 class system
 {
@@ -61,11 +155,18 @@ public:
 	}
 
 private:
+    sysclock clock;
 	int debug_level;
 	std::map<std::string,int> debug_levels;
 	std::stringstream slog;
 	std::mutex llog;
 	AutoFlush flog;
+
+public:
+    static float get_time()
+    {
+        return instance().clock.get();
+    }
 
 public:
 	system()

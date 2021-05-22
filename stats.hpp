@@ -7,6 +7,7 @@
 #include <list>
 #include <memory>
 
+<<<<<<< HEAD
 #ifdef _WIN32
 #include <profileapi.h>
 #include <windows.h>
@@ -14,6 +15,8 @@
 #include <sys/time.h>
 #endif
 
+=======
+>>>>>>> e37acf9dbe2063ff1e7561c2c2cb5f3f436d3db4
 #include "system.hpp"
 
 
@@ -21,6 +24,7 @@
 
 namespace parallel_f {
 
+<<<<<<< HEAD
 #ifdef _WIN32
 class sysclock
 {
@@ -77,6 +81,8 @@ public:
 #endif
 
 
+=======
+>>>>>>> e37acf9dbe2063ff1e7561c2c2cb5f3f436d3db4
 namespace stats {
 
 class stat
@@ -148,12 +154,18 @@ public:
 	}
 
 private:
+	std::mutex lock;
 	std::list<std::shared_ptr<stat>> stats;
 	sysclock total;
+
+private:
+	instance() {}
 
 public:
 	std::shared_ptr<stat> make_stat(std::string name)
 	{
+		std::unique_lock<std::mutex> l(lock);
+
 		auto s = std::make_shared<stat>(name);
 
 		stats.push_back(s);
@@ -165,6 +177,8 @@ public:
 
 	void show_stats()
 	{
+		std::unique_lock<std::mutex> l(lock);
+
 		float total_seconds = total.reset();
 
 		std::map<std::string, std::list<std::shared_ptr<stat>>> groups;

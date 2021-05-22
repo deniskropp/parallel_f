@@ -62,7 +62,7 @@ private:
 			LOG_DEBUG("vthread::manager::~manager(): shutting down...\n");
 
 			std::unique_lock<std::mutex> lock(mutex);
-			
+
 			shutdown = true;
 
 			cond.notify_all();
@@ -99,7 +99,7 @@ private:
 
 			if (stat)
 				stat->report_idle(clock.reset());
-			
+
 			if (shutdown || stack.empty())
 				return;
 
