@@ -62,6 +62,8 @@ int main()
 {
 	parallel_f::setDebugLevel(0);
 
+	parallel_f::system::instance().setAutoFlush(parallel_f::system::AutoFlush::EndOfLine);
+
 
 	std::vector<object::entity> objects(8);
 
@@ -69,13 +71,13 @@ int main()
 	parallel_f::task_id flush_id = 0;
 
 	for (int i = 0; i < 4; i++) {
-		for (int i = 0; i < objects.size(); i++) {
-			auto o = &objects[i];
+		for (int n = 0; n < objects.size(); n++) {
+			auto o = &objects[n];
 
 			auto run_id = tl.append(parallel_f::make_task(object::funcs::run, o), flush_id);
 
-			if (i == 0 || i == objects.size()-1)
-				tl.append(parallel_f::make_task(object::funcs::show, o), run_id);
+			if (n == 0 || n == objects.size()-1)
+				flush_id = tl.append(parallel_f::make_task(object::funcs::show, o), run_id);
 		}
 
 		flush_id = tl.flush();
