@@ -1,5 +1,8 @@
 SUBDIRS = \
 	test_flush_join \
+	test_list \
+	test_objects \
+	test_pause \
 	test_queue
 
 all:

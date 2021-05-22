@@ -152,6 +152,7 @@
     <ClInclude Include="parallel_f.hpp" />
     <ClInclude Include="stats.hpp" />
     <ClInclude Include="system.hpp" />
+    <ClInclude Include="test_utils.hpp" />
     <ClInclude Include="ustd.hpp" />
     <ClInclude Include="vthread.hpp" />
   </ItemGroup>
