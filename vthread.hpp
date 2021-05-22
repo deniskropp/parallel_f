@@ -1,4 +1,4 @@
-// === (C) 2020 === parallel_f / vthread (tasks, queues, lists in parallel threads)
+// === (C) 2020/2021 === parallel_f / vthread (tasks, queues, lists in parallel threads)
 // Written by Denis Oliver Kropp <Leichenbegatter@outlook.com>
 
 #pragma once
@@ -188,7 +188,7 @@ public:
 		LOG_DEBUG("vthread::vthread(%p, '%s')\n", this, name.c_str());
 	}
 
-	~vthread() noexcept(false)
+	virtual ~vthread()
 	{
 		LOG_DEBUG("vthread::~vthread(%p '%s')...\n", this, name.c_str());
 
@@ -199,7 +199,7 @@ public:
 
 			while (!done) {
 				if (vthread::is_managed_thread())
-					throw std::runtime_error("~vthread while running");
+					LOG_ERROR("~vthread while running\n");
 
 				LOG_DEBUG("vthread::~vthread(%p '%s') waiting for run() to finish\n", this, name.c_str());
 
@@ -216,7 +216,7 @@ public:
 	}
 
 public:
-	void start(std::function<void(void)> f, bool managed = true)
+	void start(std::function<void(void)> f, bool managed = true)  // TODO: remove 'unmanaged' feature
 	{
 		LOG_DEBUG("vthread::start(%p '%s', %s)...\n", this, name.c_str(), f.target_type().name());
 
