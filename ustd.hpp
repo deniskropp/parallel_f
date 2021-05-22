@@ -1,4 +1,4 @@
-// === (C) 2020 === parallel_f / ustd (tasks, queues, lists in parallel threads)
+// === (C) 2020/2021 === parallel_f / ustd (tasks, queues, lists in parallel threads)
 // Written by Denis Oliver Kropp <Leichenbegatter@outlook.com>
 
 #pragma once
@@ -68,13 +68,13 @@ public:
 
 
 template <>
-to_string<ustd::string>::to_string(const ustd::string& v)
+inline to_string<ustd::string>::to_string(const ustd::string& v)
 {
 	assign(ustd::string("'") + v + ustd::string("'"));
 }
 
 template <>
-to_string<std::any>::to_string(const std::any& v)
+inline to_string<std::any>::to_string(const std::any& v)
 {
 	std::string name(v.type().name());
 
@@ -87,43 +87,43 @@ to_string<std::any>::to_string(const std::any& v)
 }
 
 template <>
-to_string<std::string>::to_string(const std::string& v)
+inline to_string<std::string>::to_string(const std::string& v)
 {
 	assign(std::string("'") + v + std::string("'"));
 }
 
 template <>
-to_string<float>::to_string(const float& v)
+inline to_string<float>::to_string(const float& v)
 {
 	assign(std::to_string(v));
 }
 
 template <>
-to_string<double>::to_string(const double& v)
+inline to_string<double>::to_string(const double& v)
 {
 	assign(std::to_string(v));
 }
 
 template <>
-to_string<int>::to_string(const int& v)
+inline to_string<int>::to_string(const int& v)
 {
 	assign(std::to_string(v));
 }
 
 template <>
-to_string<long int>::to_string(const long int& v)
+inline to_string<long int>::to_string(const long int& v)
 {
 	assign(std::to_string(v));
 }
 
 template <>
-to_string<long long int>::to_string(const long long int& v)
+inline to_string<long long int>::to_string(const long long int& v)
 {
 	assign(std::to_string(v));
 }
 
 template <>
-to_string<bool>::to_string(const bool& v)
+inline to_string<bool>::to_string(const bool& v)
 {
 	assign(v ? "true" : "false");
 }
