@@ -18,8 +18,11 @@ public:
 
 	virtual ~TestTask()
 	{
-		if (thread)
+		if (thread) {
+			thread->join();
+
 			delete thread;
+		}
 	}
 
 protected:
@@ -83,4 +86,5 @@ int main()
 
 
 	parallel_f::stats::instance::get().show_stats();
+	parallel_f::system::instance().flush();
 }
