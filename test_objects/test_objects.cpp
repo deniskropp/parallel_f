@@ -6,20 +6,20 @@
 
 namespace object {
 
-using id = unsigned long long;
+using ID = unsigned long long;
 
 class entity
 {
 private:
-	static id next_id()
+	static ID next_id()
 	{
-		static object::id ids;
+		static ID ids;
 
 		return ++ids;
 	}
 
 public:
-	id id;
+	ID id;
 	int x;
 	int y;
 	int seq;
