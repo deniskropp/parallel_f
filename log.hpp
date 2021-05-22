@@ -31,15 +31,34 @@ namespace parallel_f {
 	} while (0)
 
 
-//#define PARALLEL_F__NO_DEBUG
 
-#ifndef PARALLEL_F__NO_DEBUG
+#define PARALLEL_F__ENABLE_DEBUG
+
+
+#ifndef NDEBUG
+#define NDEBUG (0)
+#endif
+
+#ifdef PARALLEL_F__ENABLE_DEBUG
+#if NDEBUG
+#define PARALLEL_F__DEBUG_ENABLED (0)
+#else
+#define PARALLEL_F__DEBUG_ENABLED (1)
+#endif
+#else
+#define PARALLEL_F__DEBUG_ENABLED (0)
+#endif
+
+
+#if PARALLEL_F__DEBUG_ENABLED
 #define LOG_DEBUG(...)		parallel_f::logDebug(__VA_ARGS__)
 #else
 #define LOG_DEBUG(...)		do {} while (0)
 #endif
 
 #define LOG_INFO(...)		parallel_f::logInfoF(__VA_ARGS__)
+
+#define LOG_ERROR(...)		parallel_f::logError(__VA_ARGS__)
 
 
 static inline void logDebug(const char* fmt, ...)
@@ -71,6 +90,14 @@ static inline void logInfoF(const char* fmt, ...)
 
 	system::instance().flush();
 }
+
+static inline void logError(const char* fmt, ...)
+{
+	PARALLEL_F__LOG(!!!);
+
+	system::instance().flush();
+}
+
 
 template <typename ArgType>
 static inline std::string logString(ArgType arg)
