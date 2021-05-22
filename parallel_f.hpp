@@ -95,6 +95,9 @@ public:
 			}
 			break;
 
+		case task_state::RUNNING:
+			return false;
+
 		case task_state::FINISHED:
 			LOG_DEBUG("task_base::finish(%p) returning true\n", this);
 			return true;
@@ -575,9 +578,9 @@ public:
 		std::shared_ptr<task_node> prev_flush_join = flush_join;
 
 		if (flush_join)
-			flush_join = std::make_shared<task_node>("flush", make_task([]() {}), (unsigned int)(1 + nodes.size() - 1), false);
+			flush_join = std::make_shared<task_node>("flush", make_task([]() {}), (unsigned int)(1 + nodes.size() - 1));
 		else
-			flush_join = std::make_shared<task_node>("flush", make_task([]() {}), (unsigned int)(1 + nodes.size()), false);
+			flush_join = std::make_shared<task_node>("flush", make_task([]() {}), (unsigned int)(1 + nodes.size()));
 
 		if (prev_flush_join) {
 			LOG_DEBUG("task_list::flush() joining previous flush...\n");
