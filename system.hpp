@@ -14,15 +14,9 @@
 #include <string.h>
 
 #include <stdarg.h>
-<<<<<<< HEAD
 #include <string.h>
 
 #ifdef _WIN32
-=======
-
-#ifdef _WIN32
-#include <profileapi.h>
->>>>>>> e37acf9dbe2063ff1e7561c2c2cb5f3f436d3db4
 #include <windows.h>
 #else
 #include <sys/time.h>

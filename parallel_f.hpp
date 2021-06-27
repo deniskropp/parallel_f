@@ -155,24 +155,11 @@ public:
     public:
         Value(std::shared_ptr<task_info> task) : task(task) {}
 
-<<<<<<< HEAD
 		template <typename _T>
 		_T get() {
 			return std::any_cast<_T>(task->value);
 		}
 	};
-=======
-        template <typename _T>
-        _T get() {
-	        return std::any_cast<_T>(task->value);
-        }
-
-        //template <>
-        //std::any get() {
-        //    return task->value;
-        //}
-    };
->>>>>>> e37acf9dbe2063ff1e7561c2c2cb5f3f436d3db4
 
 protected:
 	std::any value;
@@ -205,14 +192,11 @@ private:
 };
 
 template <>
-<<<<<<< HEAD
 inline std::any task_info::Value::get() {
 	return task->value;
 }
 
 template <>
-=======
->>>>>>> e37acf9dbe2063ff1e7561c2c2cb5f3f436d3db4
 inline void task_info::DumpArg(Value arg)
 {
 	switch (parallel_f::getDebugLevel()) {
@@ -226,6 +210,7 @@ inline void task_info::DumpArg(Value arg)
 		break;
 	}
 }
+
 
 
 template <typename Callable, typename... Args>

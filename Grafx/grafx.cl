@@ -51,7 +51,6 @@ struct triangle
 	} coords;
 };
 
-
 enum type
 {
 	rect,
@@ -67,12 +66,30 @@ struct instance
 
 // Utility functions
 
+void argb_to_color(uint32_t argb, struct color* color)
+{
+	color->r = (argb & 0xff) / 255.0f;
+	color->g = ((argb >> 8) & 0xff) / 255.0f;
+	color->b = ((argb >> 16) & 0xff) / 255.0f;
+	color->a = (argb >> 24) / 255.0f;
+}
+
 uint32_t color_to_argb(__global struct color* color)
 {
 	int r = color->r * 255;
 	int g = color->g * 255;
 	int b = color->b * 255;
 	int a = color->a * 255;
+
+	return (a << 24) | (b << 16) | (g << 8) | r;
+}
+
+uint32_t color_to_argb_blended(__global struct color* c1, struct color* c2)
+{
+	int r = (c1->r + c2->r * (1.0f - c1->a)) * 255;
+	int g = (c1->g + c2->g * (1.0f - c1->a)) * 255;
+	int b = (c1->b + c2->b * (1.0f - c1->a)) * 255;
+	int a = (c1->a + c2->a * (1.0f - c1->a)) * 255;
 
 	return (a << 24) | (b << 16) | (g << 8) | r;
 }
@@ -126,8 +143,17 @@ void render_instance(__global struct rect* rects,
 			rect_ = &rects[instances[index].index];
 
 			if (x >= rect_->base.bounds.tl.x && x < rect_->base.bounds.br.x &&
-				y >= rect_->base.bounds.tl.y && y < rect_->base.bounds.br.y)
-				*output = color_to_argb(&rect_->color);
+				y >= rect_->base.bounds.tl.y && y < rect_->base.bounds.br.y) {
+				if (rect_->base.flags & opaque)
+					*output = color_to_argb(&rect_->color);
+				else {
+					struct color output_color;
+
+					argb_to_color(*output, &output_color);
+
+					*output = color_to_argb_blended(&rect_->color, &output_color);
+				}
+			}
 
 			break;
 		case triangle:

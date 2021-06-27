@@ -7,7 +7,6 @@
 #include <list>
 #include <memory>
 
-<<<<<<< HEAD
 #ifdef _WIN32
 #include <profileapi.h>
 #include <windows.h>
@@ -15,8 +14,6 @@
 #include <sys/time.h>
 #endif
 
-=======
->>>>>>> e37acf9dbe2063ff1e7561c2c2cb5f3f436d3db4
 #include "system.hpp"
 
 
@@ -24,65 +21,7 @@
 
 namespace parallel_f {
 
-<<<<<<< HEAD
-#ifdef _WIN32
-class sysclock
-{
-private:
-	LARGE_INTEGER frequency;
-	LARGE_INTEGER last;
 
-public:
-	sysclock()
-	{
-		QueryPerformanceFrequency(&frequency);
-		QueryPerformanceCounter(&last);
-	}
-
-	float reset()
-	{
-		LARGE_INTEGER current;
-
-		QueryPerformanceCounter(&current);
-
-		float ret = (current.QuadPart - last.QuadPart) / (float) frequency.QuadPart;
-
-		last = current;
-
-		return ret;
-	}
-};
-#else
-class sysclock
-{
-private:
-	struct timeval last;
-
-public:
-	sysclock()
-	{
-	    gettimeofday(&last, NULL);
-	}
-
-	float reset()
-	{
-	    struct timeval now;
-
-	    gettimeofday(&now, NULL);
-
-
-		float ret = (now.tv_sec - last.tv_sec) + (now.tv_usec - last.tv_usec) / 1000000.0f;
-
-		last = now;
-
-		return ret;
-	}
-};
-#endif
-
-
-=======
->>>>>>> e37acf9dbe2063ff1e7561c2c2cb5f3f436d3db4
 namespace stats {
 
 class stat
