@@ -1,4 +1,5 @@
 SUBDIRS = \
+	test_cl \
 	test_flush_join \
 	test_list \
 	test_objects \

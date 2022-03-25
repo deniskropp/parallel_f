@@ -479,20 +479,20 @@ protected:
 class cl_task : public parallel_f::task_base, public std::enable_shared_from_this<cl_task>
 {
 private:
-	std::shared_ptr<kernel> kernel;
+	std::shared_ptr<kernel> kernel_;
 	std::shared_ptr<kernel_args> args;
 	std::shared_ptr<task_base> task_pre;
 	std::shared_ptr<task_base> task_exec;
 	std::shared_ptr<task_base> task_post;
 
 public:
-	cl_task(std::shared_ptr<task_cl::kernel> kernel, std::shared_ptr<kernel_args> args)
+	cl_task(std::shared_ptr<task_cl::kernel> kernel_, std::shared_ptr<kernel_args> args)
 		:
-		kernel(kernel),
+		kernel_(kernel_),
 		args(args)
 	{
 		task_pre = kernel_pre::make_task(args);
-		task_exec = kernel_exec::make_task(args, kernel);
+		task_exec = kernel_exec::make_task(args, kernel_);
 		task_post = kernel_post::make_task(args);
 	}
 
@@ -523,11 +523,11 @@ protected:
 	}
 };
 
-static auto make_task(std::shared_ptr<kernel> kernel, std::shared_ptr<kernel_args> args)
+static auto make_task(std::shared_ptr<kernel> kernel_, std::shared_ptr<kernel_args> args)
 {
 	LOG_DEBUG("task_cl::make_task()\n");
 
-	return std::make_shared<cl_task>(kernel, args);
+	return std::make_shared<cl_task>(kernel_, args);
 }
 
 }

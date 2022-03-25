@@ -6,8 +6,6 @@
 #include <string>
 #include <map>
 
-#include <Windows.h>
-
 #include "Util.h"
 
 
@@ -70,8 +68,9 @@ std::string GetFileContents(std::string filename)
 
 bool FileExists(std::string filename)
 {
-	FILE* file;
-    if (fopen_s(&file, filename.c_str(), "r"))
+    FILE* file;
+    
+    if ((file = fopen(filename.c_str(), "r")) == NULL)
     {
         fclose(file);
         return true;
