@@ -15,6 +15,8 @@
 #include "system.hpp"
 #include "vthread.hpp"
 
+#include "Event.hxx"
+
 
 namespace parallel_f {
 
@@ -30,10 +32,12 @@ public:
 		FINISHED
 	};
 
+	lli::Event<int> finished;
+
 private:
 	task_state state;
 	std::mutex mutex;
-	std::vector<std::function<void(void)>> on_finished;
+//	std::vector<std::function<void(void)>> on_finished;
 
 public:
 	task_base()
@@ -48,7 +52,9 @@ public:
 		LOG_DEBUG("task_base::~task_base(%p)\n", this);
 	}
 
-	size_t handle_finished(std::function<void(void)> f)
+    task_state get_state() const { return state; }
+
+/*	size_t handle_finished(std::function<void(void)> f)
 	{
 		LOG_DEBUG("task_base::handle_finished(%p, %s)\n", this, f.target_type().name());
 
@@ -63,8 +69,8 @@ public:
 
 		return index;
 	}
-
-	void remove_handler(size_t index)
+*/
+/*	void remove_handler(size_t index)
 	{
 		LOG_DEBUG("task_base::remove_handler(%p, %zu)\n", this, index);
 
@@ -75,7 +81,7 @@ public:
 
 		on_finished[index] = 0;
 	}
-
+*/
 	bool finish()
 	{
 		LOG_DEBUG("task_base::finish(%p)\n", this);
@@ -123,10 +129,12 @@ protected:
 			if (this->state != task_state::RUNNING)
 				throw std::runtime_error("not running");
 
-			for (auto f : on_finished) {
-				if (f)
-					f();
-			}
+			finished.Dispatch(0);
+
+//			for (auto f : on_finished) {
+//				if (f)
+//					f();
+//			}
 			break;
 
 		default:
@@ -307,14 +315,13 @@ public:
 	}
 };
 
-class task_node
+class task_node : public lli::EventListener
 {
 private:
 	std::shared_ptr<task_base> task;
 	unsigned int wait;
 	bool managed;
 	std::shared_ptr<vthread> thread;
-	size_t handler_index;
 	std::mutex lock;
 	std::condition_variable cond;
 	bool finished;
@@ -331,7 +338,7 @@ public:
 
 		thread = std::make_shared<vthread>(name);
 
-		handler_index = task->handle_finished([this]() {
+		task->finished.Attach(this, [this](int) {
 			std::unique_lock<std::mutex> l(lock);
 
 			finished = true;
@@ -343,15 +350,16 @@ public:
 	~task_node()
 	{
 		LOG_DEBUG("task_node::~task_node(%p '%s')\n", this, get_name().c_str());
-
-		task->remove_handler(handler_index);
 	}
 
 	void add_to_notify(std::shared_ptr<task_node> node)
 	{
 		LOG_DEBUG("task_node::add_to_notify(%p '%s', %p)\n", this, get_name().c_str(), node.get());
 
-		task->handle_finished([node]() {
+        if (finished)
+            throw std::runtime_error("finished");
+
+        task->finished.Attach(node.get(), [node](int) {
 			node->notify();
 		});
 	}
@@ -464,7 +472,7 @@ public:
 };
 
 
-class task_queue_simple
+class task_queue_simple : public lli::EventListener
 {
 private:
 	std::vector<std::shared_ptr<task_base>> tasks;
@@ -498,7 +506,7 @@ public:
 	}
 
 private:
-	static void run(std::vector<std::shared_ptr<task_base>>& q)
+	void run(std::vector<std::shared_ptr<task_base>>& q)
 	{
 		for (auto t : q) {
 			if (!t->finish()) {
@@ -508,7 +516,7 @@ private:
 
 				std::unique_lock<std::mutex> l(lock);
 
-				t->handle_finished([&lock,&cond,&finished]() {
+				t->finished.Attach(this, [&lock,&cond,&finished](int) {
 						std::unique_lock<std::mutex> l(lock);
 
 						finished = true;
@@ -516,7 +524,7 @@ private:
 						cond.notify_one();
 					});
 
-				while (!finished)
+				while (!finished && t->get_state() != task_base::task_state::FINISHED)
 					cond.wait(l);
 			}
 		}
