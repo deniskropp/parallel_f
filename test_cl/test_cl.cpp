@@ -39,13 +39,12 @@ int main()
 //	parallel_f::setDebugLevel("task_cl::kernel_exec::", 1);
 //	parallel_f::setDebugLevel("task_cl::kernel_exec::run() <= Queue FINISHED", 1);
 //	parallel_f::setDebugLevel("task_cl::kernel_post::", 1);
+	parallel_f::setDebugLevel("task_cl::make_kernel::", 1);
 
-//	parallel_f::system::instance().setAutoFlush(parallel_f::system::AutoFlush::EndOfLine);
+	parallel_f::system::instance().setAutoFlush(parallel_f::system::AutoFlush::EndOfLine);
 //	parallel_f::system::instance().startFlushThread(10);
 
 	RUN(test_cl_init());
-
-	RUN(test_cl_codegen());
 
 	RUN(test_cl_bench_latency<parallel_f::task_queue>());
 
@@ -60,6 +59,8 @@ int main()
 	RUN(test_cl_objects_simple());
 
 	RUN(test_cl_objects_queue());
+
+	RUN(test_cl_codegen());
 }
 
 
@@ -75,6 +76,8 @@ static void test_cl_init()
 
 static void test_cl_codegen()
 {
+  LOG_DEBUG("%d\n", __LINE__);
+  
 	std::stringstream ss;
 
 	ss << "int sum(int a, int b) { return a + b; }\n";
@@ -87,6 +90,7 @@ static void test_cl_codegen()
 	ss << "        cc[idx] = sum(aa[idx], bb[idx]);\n";
 	ss << "}\n";
 
+  LOG_DEBUG("%d\n", __LINE__);
 	std::vector<int> aa(1024);
 	std::vector<int> bb(1024);
 	std::vector<int> cc(1024);
@@ -96,23 +100,35 @@ static void test_cl_codegen()
 		bb[i] = i * 345;
 	}
 
+  LOG_DEBUG("%d\n", __LINE__);
 	auto kernel = task_cl::make_kernel_from_source(ss.str(), "sums", aa.size(), 256);
 
+  LOG_DEBUG("%d\n", __LINE__);
 	auto args = task_cl::make_args(new task_cl::kernel_args::kernel_arg_mem(aa.size(), aa.data(), NULL),
 								   new task_cl::kernel_args::kernel_arg_mem(bb.size(), bb.data(), NULL),
 								   new task_cl::kernel_args::kernel_arg_mem(cc.size(), NULL, cc.data()),
 								   new task_cl::kernel_args::kernel_arg_t<cl_int>((cl_int)aa.size()));
+  LOG_DEBUG("%d\n", __LINE__);
 
+  {
 	auto task_pre = task_cl::kernel_pre::make_task(args);
 	auto task_exec = task_cl::kernel_exec::make_task(args, kernel);
 	auto task_post = task_cl::kernel_post::make_task(args);
+    LOG_DEBUG("%d\n", __LINE__);
 
+    {
 	parallel_f::task_queue tq;
 
 	tq.push(task_pre);
 	tq.push(task_exec);
 	tq.push(task_post);
+    LOG_DEBUG("%d\n", __LINE__);
 	tq.exec();
+        LOG_DEBUG("%d\n", __LINE__);
+	}
+    LOG_DEBUG("%d\n", __LINE__);
+  }
+  LOG_DEBUG("%d\n", __LINE__);
 }
 
 
