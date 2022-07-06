@@ -4,7 +4,8 @@ SUBDIRS = \
 	test_list \
 	test_objects \
 	test_pause \
-	test_queue
+	test_queue \
+	thumbnailer
 
 all:
 	@for i in $(SUBDIRS); do \

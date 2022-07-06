@@ -21,7 +21,7 @@ int main()
 	};
 
 	auto func_scale = [](std::string filename, auto img) {
-		std::shared_ptr<sf::Image> image = img.get<std::shared_ptr<sf::Image>>();
+		std::shared_ptr<sf::Image> image = img.template get<std::shared_ptr<sf::Image>>();
 
 		parallel_f::logInfoF("Scale %s... (%ux%u->%ux%u)\n", filename.c_str(), image->getSize().x, image->getSize().y, image->getSize().x/20, image->getSize().y/20);
 
@@ -35,7 +35,7 @@ int main()
 		tex.loadFromImage(*image);
 
 		sprite.setTexture(tex);
-		sprite.setScale(.05f, .05f);
+		sprite.setScale(sf::Vector2f(.05f, .05f));
 
 		thumb_render.draw(sprite);
 
@@ -45,7 +45,7 @@ int main()
 	};
 
 	auto func_store = [](auto img, std::string filename) {
-		std::shared_ptr<sf::Image> image = img.get<std::shared_ptr<sf::Image>>();
+		std::shared_ptr<sf::Image> image = img.template get<std::shared_ptr<sf::Image>>();
 
 		parallel_f::logInfoF("Store %s...\n", filename.c_str());
 
