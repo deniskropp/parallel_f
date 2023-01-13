@@ -27,7 +27,7 @@ int main()
 
 		sf::RenderTexture thumb_render;
 
-		thumb_render.create(image->getSize().x / 20, image->getSize().y / 20);
+		thumb_render.create({image->getSize().x / 20, image->getSize().y / 20});
 
 		sf::Texture tex;
 		sf::Sprite sprite;
