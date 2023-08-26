@@ -2,13 +2,15 @@ import * as parallel_f from '../'
 
 
 async function run() {
-    const task = parallel_f.make_task(() => {
-        console.log('task!')
-    }, [])
-
     const tq = new parallel_f.TaskQueue()
 
-    tq.push(task)
+    const f_tn = async (n: number) => {
+        console.log('task', n)
+    }
+
+    for (let i = 0; i < 4; i++) {
+        tq.push(parallel_f.make_task(f_tn, [i + 1]))
+    }
 
     await tq.exec()
 }

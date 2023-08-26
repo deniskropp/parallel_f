@@ -4,7 +4,7 @@
   "description": "",
   "main": "ts/index.tsx",
   "scripts": {
-    "test": "tsx ts/test/test1.tsx"
+    "test": "tsx ts/test/test1.tsx && tsx ts/test/test2.tsx"
   },
   "keywords": [],
   "author": "",

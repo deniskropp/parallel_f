@@ -8,19 +8,19 @@ export class TaskQueue {
     }
 
     push(task: Task) {
+        console.log(`TaskQueue::push(${task.fname()})`)
+
         this.q.push(task)
     }
 
     async exec() {
         console.log('TaskQueue::exec()')
 
-        while (this.q.length > 0) {
-            const t = this.q.shift()
+        let eq = this.q
 
-            //XXX TODO: EXECUTE TASK t
-            if (t) {
-                t.finish()
-            }
-        }
+        this.q = []
+
+        return eq.map(async task => await task.finish())
+//        eq.forEach(async task => await task.finish())
     }
 }
