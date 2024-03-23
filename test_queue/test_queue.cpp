@@ -1,7 +1,7 @@
 // === (C) 2020 === parallel_f / test_queue (tasks, queues, lists in parallel threads)
 // Written by Denis Oliver Kropp <Leichenbegatter@outlook.com>
 
-#include "parallel_f.hpp"
+#include "../parallel_f.hpp"
 
 
 // parallel_f :: task_queue == testing example

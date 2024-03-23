@@ -26,6 +26,9 @@ static void test_cl_bench_latency();
 template <typename Tq = parallel_f::task_queue>
 static void test_cl_bench_throughput();
 
+template <typename Tq = parallel_f::task_queue>
+static void test_cl_bench_complexity();
+
 
 int main()
 {
@@ -45,6 +48,8 @@ int main()
 //	parallel_f::system::instance().startFlushThread(10);
 
 	RUN(test_cl_init());
+
+	RUN(test_cl_bench_complexity<parallel_f::task_queue>());
 
 	RUN(test_cl_bench_latency<parallel_f::task_queue>());
 
@@ -360,3 +365,53 @@ static void test_cl_bench_throughput()
 		parallel_f::logInfo("Kernel Execution Throughput: %f per second\n", 20.0f / duration);
 	}
 }
+
+
+
+static const char * complex_kernel_source = R"cl(
+__kernel void TestComplex(
+		__global float *in,
+		__global float *out,
+		const unsigned int n,
+		const float x)
+{
+	const unsigned int id = get_global_id(0);
+
+	if (id < n) {
+		float x1 = in[id];
+		float x2 = x1 / (x * x);
+
+		out[id] = x1 + x2;
+	}
+}
+)cl";
+
+template <typename Tq>
+static void test_cl_bench_complexity()
+{
+	Tq tq;
+
+	auto kernel = task_cl::make_kernel(complex_kernel_source, "TestComplex", 1, 1);
+
+	std::vector<float> in(2000000);
+	std::vector<float> out(2000000);
+
+	parallel_f::sysclock clock;
+
+	for (int n = 0; n < 10; n++) {
+		auto args = task_cl::make_args(new task_cl::kernel_args::kernel_arg_mem(in.size() * sizeof(float), in.data(), out.data()),
+									   new task_cl::kernel_args::kernel_arg_t<cl_uint>((cl_uint)in.size()),
+									   new task_cl::kernel_args::kernel_arg_t<cl_float>((cl_float)1.0f));
+
+		auto task = task_cl::kernel_exec::make_task(args, kernel);
+
+		clock.reset();
+		tq.push(task);
+		tq.exec();
+
+		float duration = clock.reset();
+
+		parallel_f::logInfo("Kernel Complexity: %f per second\n", (float)in.size() / duration);
+	}
+}
+
