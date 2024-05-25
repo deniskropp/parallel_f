@@ -24,14 +24,14 @@ int main()
 	auto task = parallel_f::make_task([]() {
 			std::cout << "Hello World" << std::endl;
 		});
-	parallel_f::task_list tl;
-	tl.append(task);
-	tl.finish();
+	parallel_f::task_queue tq;
+	tq.push(task);
+	tq.exec();
 	parallel_f::stats::instance::get().show_stats();
 }
 ```
 
-The main thread is creating a task via make_task, appends it to the list and calls finish to schedule it, waiting for it to be done.
+The main thread is creating a task via make_task, pushes it to the queue and calls exec to schedule it, waiting for it to be done. If false is passed to exec, a joinable is returned.
 
 
 ## Advanced Example
