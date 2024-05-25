@@ -31,7 +31,7 @@ int main()
 }
 ```
 
-The main thread is creating a task via make_task, pushes it to the queue and calls exec to schedule it, waiting for it to be done. If false is passed to exec, a joinable is returned.
+The main thread is creating a task via make_task, pushes it to the queue and calls exec to schedule it, waiting for it to be done. If true is passed to exec, a joinable is returned.
 
 
 ## Advanced Example
