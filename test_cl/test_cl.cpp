@@ -4,13 +4,15 @@
 #include <sstream>
 #include <vector>
 
-#include "parallel_f.hpp"
-#include "task_cl.hpp"
-#include "test_utils.hpp"
+#include "../parallel_f.hpp"
+#include "../task_cl.hpp"
+#include "../test_utils.hpp"
 
 
 
 static void test_cl_init();
+
+static void test_cl_memcpy();
 
 static void test_cl_codegen();
 
@@ -32,7 +34,7 @@ static void test_cl_bench_complexity();
 
 int main()
 {
-	parallel_f::setDebugLevel(0);
+	parallel_f::setDebugLevel(1);
 //	parallel_f::setDebugLevel("task::", 1);
 //	parallel_f::setDebugLevel("task_list::", 1);
 //	parallel_f::setDebugLevel("task_queue::", 1);
@@ -48,6 +50,8 @@ int main()
 //	parallel_f::system::instance().startFlushThread(10);
 
 	RUN(test_cl_init());
+	
+	RUN(test_cl_memcpy());
 
 	RUN(test_cl_bench_complexity<parallel_f::task_queue>());
 
@@ -134,6 +138,48 @@ static void test_cl_codegen()
     LOG_DEBUG("%d\n", __LINE__);
   }
   LOG_DEBUG("%d\n", __LINE__);
+}
+
+
+// parallel_f :: task_cl == testing OpenCL memory throughput
+
+static void test_cl_memcpy()
+{
+	std::vector<std::byte> data(16 * 1024 * 1024);
+
+	auto args = task_cl::make_args(new task_cl::kernel_args::kernel_arg_mem(data.size(), data.data(), NULL),
+								   new task_cl::kernel_args::kernel_arg_mem(data.size(), NULL, data.data()),
+								   new task_cl::kernel_args::kernel_arg_t<cl_int>((cl_int)data.size() / 16));
+
+	auto task_pre = task_cl::kernel_pre::make_task(args);
+	auto task_post = task_cl::kernel_post::make_task(args);
+
+	parallel_f::task_queue tq;
+	parallel_f::joinables j;
+
+	tq.push(task_pre);
+	tq.exec();
+
+	auto kernel = task_cl::make_kernel("cltest.cl", "CLTest1", data.size() / 16, 256);
+
+	for (int i = 0; i < 1000; i++) {
+		auto task_exec = task_cl::kernel_exec::make_task(args, kernel);
+
+		tq.push(task_exec);
+
+		j.add(tq.exec(true));
+	}
+
+	parallel_f::sysclock clock;
+
+	j.join_all();
+
+	auto duration = clock.get();
+	parallel_f::logInfo("join_all() took %f sec (%9.1f bytes/sec)\n", duration, 16.0*1024.0*1024.0*1000.0 / duration);
+
+
+	tq.push(task_post);
+	tq.exec();
 }
 
 

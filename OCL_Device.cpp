@@ -123,6 +123,8 @@ void OCL_Device::PrintInfo()
 
 cl_command_queue OCL_Device::CreateQueue()
 {
+	LOG_DEBUG("OCL_Device::CreateQueue()\n");
+
 	std::unique_lock<std::mutex> lock(m_queues_lock);
 
 	if (m_queues_list.empty()) {
@@ -145,9 +147,11 @@ cl_command_queue OCL_Device::CreateQueue()
 
 void OCL_Device::DestroyQueue(cl_command_queue queue)
 {
+	LOG_DEBUG("OCL_Device::DestroyQueue(%zu)\n", queue);
+
 	std::unique_lock<std::mutex> lock(m_queues_lock);
 
-	if (m_queues_list.size() < 20)
+	if (m_queues_list.size() < 3)
 		m_queues_list.push_back(queue);
 	else
 		clReleaseCommandQueue(queue);
