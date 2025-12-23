@@ -9,10 +9,7 @@
 
 #include "Event.hxx"
 
-
-
 namespace parallel_f {
-
 
 // parallel_f :: task_base == implementation
 
@@ -43,95 +40,81 @@ namespace parallel_f {
  *  state, and is used by the caller of `finish` to wait for the task to
  *  complete, or to perform some action after the task has completed.
  */
-class task_base
-{
+class task_base {
 public:
-	enum class task_state {
-		CREATED,
-		RUNNING,
-		FINISHED
-	};
+  enum class task_state { CREATED, RUNNING, FINISHED };
 
-	lli::Event<int> finished;
+  parallel_f::events::event<int> finished;
 
 private:
-	task_state state;
-	std::mutex mutex;
+  task_state state;
+  std::mutex mutex;
 
 public:
-	task_base()
-		:
-		state(task_state::CREATED)
-	{
-		LOG_DEBUG("task_base::task_base(%p)\n", this);
-	}
+  task_base() : state(task_state::CREATED) {
+    LOG_DEBUG("task_base::task_base(%p)\n", this);
+  }
 
-	~task_base()
-	{
-		LOG_DEBUG("task_base::~task_base(%p)\n", this);
-	}
+  ~task_base() { LOG_DEBUG("task_base::~task_base(%p)\n", this); }
 
-    task_state get_state() const { return state; }
-	
-	bool finish()
-	{
-		LOG_DEBUG("task_base::finish(%p)\n", this);
+  task_state get_state() const { return state; }
 
-		std::unique_lock<std::mutex> lock(mutex);
+  bool finish() {
+    LOG_DEBUG("task_base::finish(%p)\n", this);
 
-		switch (state) {
-		case task_state::CREATED:
-			state = task_state::RUNNING;
+    std::unique_lock<std::mutex> lock(mutex);
 
-			lock.unlock();
+    switch (state) {
+    case task_state::CREATED:
+      state = task_state::RUNNING;
 
-			if (run()) {
-				enter_state(task_state::FINISHED);
-				LOG_DEBUG("task_base::finish(%p) returning true\n", this);
-				return true;
-			}
-			break;
+      lock.unlock();
 
-		case task_state::RUNNING:
-			return false;
+      if (run()) {
+        enter_state(task_state::FINISHED);
+        LOG_DEBUG("task_base::finish(%p) returning true\n", this);
+        return true;
+      }
+      break;
 
-		case task_state::FINISHED:
-			LOG_DEBUG("task_base::finish(%p) returning true\n", this);
-			return true;
-		}
+    case task_state::RUNNING:
+      return false;
 
-		LOG_DEBUG("task_base::finish(%p) returning false\n", this);
+    case task_state::FINISHED:
+      LOG_DEBUG("task_base::finish(%p) returning true\n", this);
+      return true;
+    }
 
-		return false;
-	}
+    LOG_DEBUG("task_base::finish(%p) returning false\n", this);
+
+    return false;
+  }
 
 protected:
-	void enter_state(task_state state)
-	{
-		LOG_DEBUG("task_base::enter_state(%p, %d)\n", this, state);
+  void enter_state(task_state state) {
+    LOG_DEBUG("task_base::enter_state(%p, %d)\n", this, state);
 
-		std::unique_lock<std::mutex> lock(mutex);
+    std::unique_lock<std::mutex> lock(mutex);
 
-		if (this->state == state)
-			return;
+    if (this->state == state)
+      return;
 
-		switch (state) {
-		case task_state::FINISHED:
-			if (this->state != task_state::RUNNING)
-				throw std::runtime_error("not running");
+    switch (state) {
+    case task_state::FINISHED:
+      if (this->state != task_state::RUNNING)
+        throw std::runtime_error("not running");
 
-			finished.Dispatch(0);
-			break;
+      finished.dispatch(0);
+      break;
 
-		default:
-			throw std::runtime_error("invalid transition");
-		}
+    default:
+      throw std::runtime_error("invalid transition");
+    }
 
-		this->state = state;
-	}
+    this->state = state;
+  }
 
-	virtual bool run() = 0;
+  virtual bool run() = 0;
 };
 
-
-}
+} // namespace parallel_f

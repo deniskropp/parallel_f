@@ -5,109 +5,88 @@
 #include <set>
 #include <vector>
 
+namespace parallel_f {
+namespace events {
 
-namespace lli {
+class event_listener;
 
-
-class EventListener;
-
-
-class EventBase {
+class event_base {
 public:
-    virtual void Detach(EventListener *listener) = 0;
+  virtual void detach(event_listener *listener) = 0;
 };
 
-
-class EventListener
-{
+class event_listener {
 private:
-    std::set<EventBase*> events;
-    std::mutex events_mutex;
+  std::set<event_base *> events;
+  std::mutex events_mutex;
 
 public:
-    ~EventListener()
-    {
-        std::unique_lock<std::mutex> lock(events_mutex);
+  ~event_listener() {
+    std::unique_lock<std::mutex> lock(events_mutex);
 
-        while (!events.empty())
-        {
-            auto e = *events.begin();
+    while (!events.empty()) {
+      auto e = *events.begin();
 
-            e->Detach(this);
-        }
+      e->detach(this);
     }
+  }
 
-    void AddEvent(EventBase* event)
-    {
-        std::unique_lock<std::mutex> lock(events_mutex);
+  void add_event(event_base *event) {
+    std::unique_lock<std::mutex> lock(events_mutex);
 
-        events.insert(event);
-    }
+    events.insert(event);
+  }
 
-    void RemoveEvent(EventBase* event)
-    {
-        events.erase(event);
-    }
+  void remove_event(event_base *event) { events.erase(event); }
 };
 
-
-template <typename... Args>
-class Event : public EventBase
-{
+template <typename... Args> class event : public event_base {
 private:
-    class Handler
-    {
-    public:
-        EventListener *listener;
+  class handler {
+  public:
+    event_listener *listener;
 
-        std::function<void(Args...)>    func;
+    std::function<void(Args...)> func;
 
-        Handler(EventListener* listener, std::function<void(Args...)> func)
-            :
-            listener(listener),
-            func(func)
-        {
-        }
-    };
+    handler(event_listener *listener, std::function<void(Args...)> func)
+        : listener(listener), func(func) {}
+  };
 
-    std::vector<Handler> handlers;
-    std::mutex handlers_mutex;
+  std::vector<handler> handlers;
+  std::mutex handlers_mutex;
 
 public:
-    void Attach(EventListener *listener, std::function<void(Args...)> func)
-    {
-        std::unique_lock<std::mutex> lock(handlers_mutex);
+  void attach(event_listener *listener, std::function<void(Args...)> func) {
+    std::unique_lock<std::mutex> lock(handlers_mutex);
 
-        handlers.emplace_back(listener, func);
+    handlers.emplace_back(listener, func);
 
-        listener->AddEvent(this);
+    listener->add_event(this);
+  }
+
+  virtual void detach(event_listener *listener) override {
+    std::unique_lock<std::mutex> lock(handlers_mutex);
+
+    std::vector<handler> h = handlers;
+
+    handlers.clear();
+
+    for (size_t i = 0; i < h.size(); i++) {
+      if (h[i].listener != listener) {
+        handlers.push_back(h[i]);
+      }
     }
 
-    virtual void Detach(EventListener *listener) override
-    {
-        std::unique_lock<std::mutex> lock(handlers_mutex);
+    listener->remove_event(this);
+  }
 
-        std::vector<Handler> h = handlers;
+  void dispatch(Args... args) {
+    std::unique_lock<std::mutex> lock(handlers_mutex);
 
-        handlers.clear();
-
-        for (size_t i=0; i<h.size(); i++) {
-            if (h[i].listener != listener) {
-                handlers.push_back(h[i]);
-            }
-        }
-
-        listener->RemoveEvent(this);
-    }
-
-    void Dispatch(Args... args)
-    {
-        std::unique_lock<std::mutex> lock(handlers_mutex);
-
-        for (auto& handler : handlers)
-            handler.func(args...);
-    }
+    for (auto &handler : handlers)
+      handler.func(args...);
+  }
 };
 
-
-}
+} // namespace events
+} // namespace parallel_f

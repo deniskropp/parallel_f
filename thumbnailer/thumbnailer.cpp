@@ -7,73 +7,79 @@
 
 #include <parallel_f.hpp>
 
+int main() {
+  auto func_load = [](std::string filename) {
+    std::shared_ptr<sf::Image> image = std::make_shared<sf::Image>();
 
-int main()
-{
-	auto func_load = [](std::string filename) {
-		std::shared_ptr<sf::Image> image = std::make_shared<sf::Image>();
+    parallel_f::log_info_f("Load %s...\n", filename.c_str());
 
-		parallel_f::logInfoF("Load %s...\n", filename.c_str());
+    image->loadFromFile(filename);
 
-		image->loadFromFile(filename);
+    return image;
+  };
 
-		return image;
-	};
+  auto func_scale = [](std::string filename, auto img) {
+    std::shared_ptr<sf::Image> image =
+        img.template get<std::shared_ptr<sf::Image>>();
 
-	auto func_scale = [](std::string filename, auto img) {
-		std::shared_ptr<sf::Image> image = img.template get<std::shared_ptr<sf::Image>>();
+    parallel_f::log_info_f("Scale %s... (%ux%u->%ux%u)\n", filename.c_str(),
+                           image->getSize().x, image->getSize().y,
+                           image->getSize().x / 20, image->getSize().y / 20);
 
-		parallel_f::logInfoF("Scale %s... (%ux%u->%ux%u)\n", filename.c_str(), image->getSize().x, image->getSize().y, image->getSize().x/20, image->getSize().y/20);
+    sf::RenderTexture thumb_render;
 
-		sf::RenderTexture thumb_render;
+    thumb_render.create({image->getSize().x / 20, image->getSize().y / 20});
 
-		thumb_render.create({image->getSize().x / 20, image->getSize().y / 20});
+    sf::Texture tex;
+    sf::Sprite sprite;
 
-		sf::Texture tex;
-		sf::Sprite sprite;
+    tex.loadFromImage(*image);
 
-		tex.loadFromImage(*image);
+    sprite.setTexture(tex);
+    sprite.setScale(sf::Vector2f(.05f, .05f));
 
-		sprite.setTexture(tex);
-		sprite.setScale(sf::Vector2f(.05f, .05f));
+    thumb_render.draw(sprite);
 
-		thumb_render.draw(sprite);
+    std::shared_ptr<sf::Image> thumb =
+        std::make_shared<sf::Image>(thumb_render.getTexture().copyToImage());
 
-		std::shared_ptr<sf::Image> thumb = std::make_shared<sf::Image>(thumb_render.getTexture().copyToImage());
+    return thumb;
+  };
 
-		return thumb;
-	};
+  auto func_store = [](auto img, std::string filename) {
+    std::shared_ptr<sf::Image> image =
+        img.template get<std::shared_ptr<sf::Image>>();
 
-	auto func_store = [](auto img, std::string filename) {
-		std::shared_ptr<sf::Image> image = img.template get<std::shared_ptr<sf::Image>>();
+    parallel_f::log_info_f("Store %s...\n", filename.c_str());
 
-		parallel_f::logInfoF("Store %s...\n", filename.c_str());
+    image->saveToFile(filename);
+  };
 
-		image->saveToFile(filename);
-	};
+  sf::Clock clock;
 
+  parallel_f::task_list task_list;
 
-	sf::Clock clock;
+  for (auto &p : std::filesystem::recursive_directory_iterator(".")) {
+    if (p.path().string().find(".jpg") != std::string::npos) {
+      std::string filename = p.path().string();
 
-	parallel_f::task_list task_list;
+      auto task_load = parallel_f::make_task(func_load, filename);
+      auto task_scale =
+          parallel_f::make_task(func_scale, filename, task_load->result());
+      auto task_store = parallel_f::make_task(
+          func_store, task_scale->result(),
+          filename.substr(0, filename.find_last_of(".")) + "_mini.png");
 
-	for (auto& p : std::filesystem::recursive_directory_iterator(".")) {
-		if (p.path().string().find(".jpg") != std::string::npos) {
-			std::string filename = p.path().string();
+      auto id_load = task_list.append(task_load);
+      auto id_scale = task_list.append(task_scale, id_load);
+      auto id_store = task_list.append(task_store, id_scale);
+    }
+  }
 
-			auto task_load = parallel_f::make_task(func_load, filename);
-			auto task_scale = parallel_f::make_task(func_scale, filename, task_load->result());
-			auto task_store = parallel_f::make_task(func_store, task_scale->result(), filename.substr(0, filename.find_last_of(".")) + "_mini.png");
+  task_list.finish();
 
-			auto id_load = task_list.append(task_load);
-			auto id_scale = task_list.append(task_scale, id_load);
-			auto id_store = task_list.append(task_store, id_scale);
-		}
-	}
+  std::cout << "Operations took " << clock.getElapsedTime().asSeconds()
+            << " seconds." << std::endl;
 
-	task_list.finish();
-
-	std::cout << "Operations took " << clock.getElapsedTime().asSeconds() << " seconds." << std::endl;
-
-	parallel_f::stats::instance::get().show_stats();
+  parallel_f::stats::instance::get().show_stats();
 }
