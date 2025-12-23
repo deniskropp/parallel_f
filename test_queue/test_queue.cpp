@@ -18,7 +18,7 @@ int main() {
     return "Hello World";
   };
 
-  auto func2 = [](parallel_f::task_info::Value msg) -> std::string {
+  auto func2 = [](parallel_f::core::task_info::Value msg) -> std::string {
     parallel_f::log_info("Second function receiving '%s'\n",
                          msg.get<std::string>().c_str());
 
@@ -27,7 +27,7 @@ int main() {
     return "Good bye";
   };
 
-  auto func3 = [](parallel_f::task_info::Value msg) -> std::string {
+  auto func3 = [](parallel_f::core::task_info::Value msg) -> std::string {
     parallel_f::log_info("Third function receiving '%s'\n",
                          msg.get<std::string>().c_str());
 
@@ -37,7 +37,7 @@ int main() {
   };
 
   parallel_f::joinables j;
-  parallel_f::task_queue tq;
+  parallel_f::core::task_queue tq;
 
   // round 1 = initial test with three tasks
   auto task1 = parallel_f::make_task(func1);
@@ -68,7 +68,7 @@ int main() {
 
   tq.push(task31);
 
-  parallel_f::task_queue queue2;
+  parallel_f::core::task_queue queue2;
 
   queue2.push(task32);
   queue2.push(task33);

@@ -57,7 +57,7 @@ int main() {
 
   sf::Clock clock;
 
-  parallel_f::task_list task_list;
+  parallel_f::core::task_list task_list;
 
   for (auto &p : std::filesystem::recursive_directory_iterator(".")) {
     if (p.path().string().find(".jpg") != std::string::npos) {

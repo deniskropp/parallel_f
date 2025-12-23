@@ -23,6 +23,8 @@
 
 namespace parallel_f {
 
+namespace core {
+
 static const std::any none;
 
 /**
@@ -298,5 +300,15 @@ public:
 
   size_t length() const { return nodes.size(); }
 };
+
+} // namespace core
+
+using core::make_task;
+using core::task;
+using core::task_base;
+using core::task_id;
+using core::task_list;
+using core::task_queue;
+using core::task_queue_simple;
 
 } // namespace parallel_f

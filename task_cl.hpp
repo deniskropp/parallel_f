@@ -5,8 +5,8 @@
 
 #include "parallel_f.hpp"
 
-#include "OCL_Device.h"
 #include "Util.h"
+#include "ocl_device.hpp"
 
 namespace task_cl {
 
@@ -29,7 +29,7 @@ public:
   };
 
 private:
-  OCL_Device *ocl_device;
+  parallel_f::ocl::ocl_device *ocl_device;
   std::mutex lock;
   std::condition_variable cond;
   std::vector<std::thread *> threads;
@@ -53,12 +53,12 @@ public:
     int iPlatform = 0; // GetArgInt(argc, argv, "p");
     int iDevice = 0;   // GetArgInt(argc, argv, "d");
 
-    parallel_f::logInfo("Initializing OpenCL...\n");
+    parallel_f::log_info("Initializing OpenCL...\n");
 
     // Set-up OpenCL Platform
-    ocl_device = new OCL_Device(iPlatform, iDevice);
-    ocl_device->SetBuildOptions("");
-    ocl_device->PrintInfo();
+    ocl_device = new parallel_f::ocl::ocl_device(iPlatform, iDevice);
+    ocl_device->set_build_options("");
+    ocl_device->print_info();
 
     spawn_queue_thread();
   }
@@ -121,7 +121,7 @@ public:
     delete ocl_device;
   }
 
-  OCL_Device *get_device() { return ocl_device; }
+  parallel_f::ocl::ocl_device *get_device() { return ocl_device; }
 
   std::mutex &get_lock() { return lock; }
 };
@@ -147,11 +147,11 @@ public:
 std::shared_ptr<kernel> make_kernel(std::string file, std::string name,
                                     size_t global_work_size,
                                     size_t local_work_size) {
-  OCL_Device *pOCL_Device = system::instance().get_device();
+  parallel_f::ocl::ocl_device *pOCL_Device = system::instance().get_device();
 
   LOG_DEBUG("task_cl::make_kernel:: %s %s\n", file.c_str(), name.c_str());
 
-  cl_kernel k = pOCL_Device->GetKernel(file, name);
+  cl_kernel k = pOCL_Device->get_kernel(file, name);
 
   return std::make_shared<kernel>(k, global_work_size, local_work_size);
 }
@@ -160,11 +160,11 @@ std::shared_ptr<kernel> make_kernel_from_source(std::string source,
                                                 std::string name,
                                                 size_t global_work_size,
                                                 size_t local_work_size) {
-  OCL_Device *pOCL_Device = system::instance().get_device();
+  parallel_f::ocl::ocl_device *pOCL_Device = system::instance().get_device();
 
   LOG_DEBUG("task_cl::make_kernel:: %s %s\n", source.c_str(), name.c_str());
 
-  cl_kernel k = pOCL_Device->GetKernelFromSource(source, name);
+  cl_kernel k = pOCL_Device->get_kernel_from_source(source, name);
 
   return std::make_shared<kernel>(k, global_work_size, local_work_size);
 }
@@ -173,13 +173,15 @@ class kernel_args {
 public:
   class kernel_arg {
   public:
-    virtual void kernel_pre_init(OCL_Device *pOCL_Device, int idx) {}
-    virtual void kernel_pre_run(OCL_Device *pOCL_Device, cl_command_queue queue,
-                                int idx) {}
+    virtual void kernel_pre_init(parallel_f::ocl::ocl_device *pOCL_Device,
+                                 int idx) {}
+    virtual void kernel_pre_run(parallel_f::ocl::ocl_device *pOCL_Device,
+                                cl_command_queue queue, int idx) {}
     virtual void kernel_exec_run(cl_kernel Kernel, int idx) {}
-    virtual void kernel_post_run(OCL_Device *pOCL_Device,
+    virtual void kernel_post_run(parallel_f::ocl::ocl_device *pOCL_Device,
                                  cl_command_queue queue, int idx) {}
-    virtual void kernel_post_deinit(OCL_Device *pOCL_Device, int idx) {}
+    virtual void kernel_post_deinit(parallel_f::ocl::ocl_device *pOCL_Device,
+                                    int idx) {}
   };
 
   template <typename T> class kernel_arg_t : public kernel_arg {
@@ -201,19 +203,20 @@ public:
     void *host_in;
     void *host_out;
 
-    std::shared_ptr<OCL_Buffer> buffer;
+    std::shared_ptr<parallel_f::ocl::ocl_buffer> buffer;
 
     kernel_arg_mem(size_t size, void *host_in, void *host_out)
         : size(size), host_in(host_in), host_out(host_out) {}
 
-    virtual void kernel_pre_init(OCL_Device *pOCL_Device, int idx) {
-      buffer = pOCL_Device->CreateBuffer(size ? size : 1);
+    virtual void kernel_pre_init(parallel_f::ocl::ocl_device *pOCL_Device,
+                                 int idx) {
+      buffer = pOCL_Device->create_buffer(size ? size : 1);
     }
 
-    virtual void kernel_pre_run(OCL_Device *pOCL_Device, cl_command_queue queue,
-                                int idx) {
+    virtual void kernel_pre_run(parallel_f::ocl::ocl_device *pOCL_Device,
+                                cl_command_queue queue, int idx) {
       if (host_in)
-        buffer->CopyBufferToDevice(queue, host_in, size);
+        buffer->copy_buffer_to_device(queue, host_in, size);
     }
 
     virtual void kernel_exec_run(cl_kernel Kernel, int idx) {
@@ -224,13 +227,14 @@ public:
       CHECK_OPENCL_ERROR(err);
     }
 
-    virtual void kernel_post_run(OCL_Device *pOCL_Device,
+    virtual void kernel_post_run(parallel_f::ocl::ocl_device *pOCL_Device,
                                  cl_command_queue queue, int idx) {
       if (host_out)
-        buffer->CopyBufferToHost(queue, host_out, size);
+        buffer->copy_buffer_to_host(queue, host_out, size);
     }
 
-    virtual void kernel_post_deinit(OCL_Device *pOCL_Device, int idx) {}
+    virtual void kernel_post_deinit(parallel_f::ocl::ocl_device *pOCL_Device,
+                                    int idx) {}
   };
 
 public:
@@ -262,9 +266,9 @@ public:
   kernel_pre(std::shared_ptr<kernel_args> args) : args(args) {
     LOG_DEBUG("task_cl::detail::kernel_pre::kernel_pre()...\n");
 
-    OCL_Device *pOCL_Device = system::instance().get_device();
+    parallel_f::ocl::ocl_device *pOCL_Device = system::instance().get_device();
 
-    queue = pOCL_Device->CreateQueue();
+    queue = pOCL_Device->create_queue();
 
     for (int i = 0; i < args->args.size(); i++)
       args->args[i]->kernel_pre_init(pOCL_Device, i);
@@ -275,16 +279,16 @@ public:
   virtual ~kernel_pre() {
     LOG_DEBUG("task_cl::detail::kernel_pre::~kernel_pre()\n");
 
-    OCL_Device *pOCL_Device = system::instance().get_device();
+    parallel_f::ocl::ocl_device *pOCL_Device = system::instance().get_device();
 
-    pOCL_Device->DestroyQueue(queue);
+    pOCL_Device->destroy_queue(queue);
   }
 
 protected:
   virtual bool run() {
     LOG_DEBUG("task_cl::detail::kernel_pre::run()...\n");
 
-    OCL_Device *pOCL_Device = system::instance().get_device();
+    parallel_f::ocl::ocl_device *pOCL_Device = system::instance().get_device();
 
     for (int i = 0; i < args->args.size(); i++)
       args->args[i]->kernel_pre_run(pOCL_Device, queue, i);
@@ -323,9 +327,9 @@ public:
       : args(args), kernel(kernel) {
     LOG_DEBUG("task_cl::detail::kernel_exec::kernel_exec()...\n");
 
-    OCL_Device *pOCL_Device = system::instance().get_device();
+    parallel_f::ocl::ocl_device *pOCL_Device = system::instance().get_device();
 
-    queue = pOCL_Device->CreateQueue();
+    queue = pOCL_Device->create_queue();
 
     LOG_DEBUG("task_cl::kernel_exec::kernel_exec() done.\n");
   }
@@ -333,9 +337,9 @@ public:
   virtual ~kernel_exec() {
     LOG_DEBUG("task_cl::detail::kernel_exec::~kernel_exec()\n");
 
-    OCL_Device *pOCL_Device = system::instance().get_device();
+    parallel_f::ocl::ocl_device *pOCL_Device = system::instance().get_device();
 
-    pOCL_Device->DestroyQueue(queue);
+    pOCL_Device->destroy_queue(queue);
   }
 
 protected:
@@ -343,7 +347,7 @@ protected:
     LOG_DEBUG("task_cl::detail::kernel_exec::run()...\n");
 
     cl_int err;
-    OCL_Device *pOCL_Device = system::instance().get_device();
+    parallel_f::ocl::ocl_device *pOCL_Device = system::instance().get_device();
 
     std::unique_lock<std::mutex> lock(system::instance().get_lock());
 
@@ -389,9 +393,9 @@ public:
   kernel_post(std::shared_ptr<kernel_args> args) : args(args) {
     LOG_DEBUG("task_cl::detail::kernel_post::kernel_post()...\n");
 
-    OCL_Device *pOCL_Device = system::instance().get_device();
+    parallel_f::ocl::ocl_device *pOCL_Device = system::instance().get_device();
 
-    queue = pOCL_Device->CreateQueue();
+    queue = pOCL_Device->create_queue();
 
     LOG_DEBUG("task_cl::kernel_post::kernel_post() done.\n");
   }
@@ -399,19 +403,19 @@ public:
   virtual ~kernel_post() {
     LOG_DEBUG("task_cl::detail::kernel_post::~kernel_post()\n");
 
-    OCL_Device *pOCL_Device = system::instance().get_device();
+    parallel_f::ocl::ocl_device *pOCL_Device = system::instance().get_device();
 
     for (int i = 0; i < args->args.size(); i++)
       args->args[i]->kernel_post_deinit(pOCL_Device, i);
 
-    pOCL_Device->DestroyQueue(queue);
+    pOCL_Device->destroy_queue(queue);
   }
 
 protected:
   virtual bool run() {
     LOG_DEBUG("task_cl::detail::kernel_post::run()...\n");
 
-    OCL_Device *pOCL_Device = system::instance().get_device();
+    parallel_f::ocl::ocl_device *pOCL_Device = system::instance().get_device();
 
     for (int i = 0; i < args->args.size(); i++)
       args->args[i]->kernel_post_run(pOCL_Device, queue, i);
@@ -454,7 +458,7 @@ protected:
   virtual bool run() {
     LOG_DEBUG("task_cl::detail::cl_task running...\n");
 
-    parallel_f::task_queue tq;
+    parallel_f::core::task_queue tq;
 
     tq.push(task_pre);
     tq.push(task_exec);

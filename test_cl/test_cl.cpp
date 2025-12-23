@@ -19,30 +19,31 @@ static void test_cl_list();
 static void test_cl_objects_simple();
 static void test_cl_objects_queue();
 
-template <typename Tq = parallel_f::task_queue>
+template <typename Tq = parallel_f::core::task_queue>
 static void test_cl_bench_latency();
 
-template <typename Tq = parallel_f::task_queue>
+template <typename Tq = parallel_f::core::task_queue>
 static void test_cl_bench_throughput();
 
-template <typename Tq = parallel_f::task_queue>
+template <typename Tq = parallel_f::core::task_queue>
 static void test_cl_bench_complexity();
 
 int main() {
-  parallel_f::setDebugLevel(1);
-  //	parallel_f::setDebugLevel("task::", 1);
-  //	parallel_f::setDebugLevel("task_list::", 1);
-  //	parallel_f::setDebugLevel("task_queue::", 1);
-  //	parallel_f::setDebugLevel("task_node::", 1);
-  //	parallel_f::setDebugLevel("task_cl::detail::cl_task::", 1);
-  //	parallel_f::setDebugLevel("task_cl::detail::kernel_pre::", 1);
-  //	parallel_f::setDebugLevel("task_cl::detail::kernel_exec::", 1);
-  //	parallel_f::setDebugLevel("task_cl::detail::kernel_exec::run() <= Queue
+  parallel_f::set_debug_level(1);
+  //	parallel_f::set_debug_level("task::", 1);
+  //	parallel_f::set_debug_level("task_list::", 1);
+  //	parallel_f::set_debug_level("task_queue::", 1);
+  //	parallel_f::set_debug_level("task_node::", 1);
+  //	parallel_f::set_debug_level("task_cl::detail::cl_task::", 1);
+  //	parallel_f::set_debug_level("task_cl::detail::kernel_pre::", 1);
+  //	parallel_f::set_debug_level("task_cl::detail::kernel_exec::", 1);
+  //	parallel_f::set_debug_level("task_cl::detail::kernel_exec::run() <=
+  //Queue
   // FINISHED", 1);
-  // parallel_f::setDebugLevel("task_cl::detail::kernel_post::", 1);
-  parallel_f::setDebugLevel("task_cl::make_kernel::", 1);
+  // parallel_f::set_debug_level("task_cl::detail::kernel_post::", 1);
+  parallel_f::set_debug_level("task_cl::make_kernel::", 1);
 
-  parallel_f::system::instance().setAutoFlush(
+  parallel_f::system::instance().set_auto_flush(
       parallel_f::system::AutoFlush::EndOfLine);
   //	parallel_f::system::instance().startFlushThread(10);
 
@@ -50,11 +51,11 @@ int main() {
 
   RUN(test_cl_memcpy());
 
-  RUN(test_cl_bench_complexity<parallel_f::task_queue>());
+  RUN(test_cl_bench_complexity<parallel_f::core::task_queue>());
 
-  RUN(test_cl_bench_latency<parallel_f::task_queue>());
+  RUN(test_cl_bench_latency<parallel_f::core::task_queue>());
 
-  RUN(test_cl_bench_throughput<parallel_f::task_queue>());
+  RUN(test_cl_bench_throughput<parallel_f::core::task_queue>());
 
   for (int i = 0; i < 3; i++)
     RUN(test_cl_queue());
@@ -121,7 +122,7 @@ static void test_cl_codegen() {
     LOG_DEBUG("%d\n", __LINE__);
 
     {
-      parallel_f::task_queue tq;
+      parallel_f::core::task_queue tq;
 
       tq.push(task_pre);
       tq.push(task_exec);
@@ -148,7 +149,7 @@ static void test_cl_memcpy() {
   auto task_pre = task_cl::detail::kernel_pre::make_task(args);
   auto task_post = task_cl::detail::kernel_post::make_task(args);
 
-  parallel_f::task_queue tq;
+  parallel_f::core::task_queue tq;
   parallel_f::joinables j;
 
   tq.push(task_pre);
@@ -170,8 +171,8 @@ static void test_cl_memcpy() {
   j.join_all();
 
   auto duration = clock.get();
-  parallel_f::logInfo("join_all() took %f sec (%9.1f bytes/sec)\n", duration,
-                      16.0 * 1024.0 * 1024.0 * 1000.0 / duration);
+  parallel_f::log_info("join_all() took %f sec (%9.1f bytes/sec)\n", duration,
+                       16.0 * 1024.0 * 1024.0 * 1000.0 / duration);
 
   tq.push(task_post);
   tq.exec();
@@ -190,7 +191,7 @@ static void test_cl_queue() {
   auto task_pre = task_cl::detail::kernel_pre::make_task(args);
   auto task_post = task_cl::detail::kernel_post::make_task(args);
 
-  parallel_f::task_queue tq;
+  parallel_f::core::task_queue tq;
   parallel_f::joinables j;
 
   tq.push(task_pre);
@@ -218,7 +219,7 @@ static void test_cl_queue() {
 static void test_cl_list() {
   std::vector<std::byte> src(16 * 1024 * 1024), dst(src.size());
 
-  parallel_f::task_list tl;
+  parallel_f::core::task_list tl;
 
   auto kernel =
       task_cl::make_kernel("cltest.cl", "CLTest2", src.size() / 16, 256);
@@ -254,8 +255,8 @@ static void test_cl_objects_simple() {
 
   std::vector<object> objects(1000);
 
-  parallel_f::task_list tl;
-  parallel_f::task_id flush_id = 0;
+  parallel_f::core::task_list tl;
+  parallel_f::core::task_id flush_id = 0;
 
   auto kernel =
       task_cl::make_kernel("cltest.cl", "RunObjects", objects.size(), 100);
@@ -271,7 +272,7 @@ static void test_cl_objects_simple() {
     auto task_id = tl.append(task, flush_id);
 
     auto task_log = parallel_f::make_task([&objects]() {
-      parallel_f::logInfo("object seq %d\n", objects[0].seq);
+      parallel_f::log_info("object seq %d\n", objects[0].seq);
     });
 
     tl.append(task_log, task_id);
@@ -296,7 +297,7 @@ static void test_cl_objects_queue() {
 
   std::vector<object> objects(1000);
 
-  parallel_f::task_queue tq;
+  parallel_f::core::task_queue tq;
   parallel_f::joinable j;
 
   auto kernel =
@@ -317,7 +318,7 @@ static void test_cl_objects_queue() {
     tq.push(task_post);
 
     auto task_log = parallel_f::make_task([&objects]() {
-      parallel_f::logInfo("object seq %d\n", objects[0].seq);
+      parallel_f::log_info("object seq %d\n", objects[0].seq);
     });
 
     tq.push(task_log);
@@ -356,7 +357,7 @@ template <typename Tq> static void test_cl_bench_latency() {
 
     float latency = clock.reset();
 
-    parallel_f::logInfo("Kernel Execution Latency: %f seconds\n", latency);
+    parallel_f::log_info("Kernel Execution Latency: %f seconds\n", latency);
   }
 }
 
@@ -388,8 +389,8 @@ template <typename Tq> static void test_cl_bench_throughput() {
 
     float duration = clock.reset();
 
-    parallel_f::logInfo("Kernel Execution Throughput: %f per second\n",
-                        20.0f / duration);
+    parallel_f::log_info("Kernel Execution Throughput: %f per second\n",
+                         20.0f / duration);
   }
 }
 
@@ -436,7 +437,7 @@ template <typename Tq> static void test_cl_bench_complexity() {
 
     float duration = clock.reset();
 
-    parallel_f::logInfo("Kernel Complexity: %f per second\n",
-                        (float)in.size() / duration);
+    parallel_f::log_info("Kernel Complexity: %f per second\n",
+                         (float)in.size() / duration);
   }
 }

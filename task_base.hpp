@@ -10,6 +10,7 @@
 #include "Event.hxx"
 
 namespace parallel_f {
+namespace core {
 
 // parallel_f :: task_base == implementation
 
@@ -92,7 +93,7 @@ public:
 
 protected:
   void enter_state(task_state state) {
-    LOG_DEBUG("task_base::enter_state(%p, %d)\n", this, state);
+    LOG_DEBUG("task_base::enter_state(%p, %d)\n", this, (int)state);
 
     std::unique_lock<std::mutex> lock(mutex);
 
@@ -117,4 +118,6 @@ protected:
   virtual bool run() = 0;
 };
 
+} // namespace core
+using core::task_base;
 } // namespace parallel_f

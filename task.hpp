@@ -7,16 +7,13 @@
 
 #include "log.hpp"
 
-
-
 #include "task_info.hpp"
-
 
 namespace parallel_f {
 
+namespace core {
 
 // parallel_f :: task == implementation
-
 
 /*
  * A task represents a unit of work that can be executed in a parallel thread.
@@ -44,43 +41,36 @@ namespace parallel_f {
  *   protected:
  *     virtual bool run(): executes the callable with the stored arguments
  */
-template <typename Callable, typename... Args>
-class task : public task_info
-{
+template <typename Callable, typename... Args> class task : public task_info {
 private:
-	Callable callable;
-	std::tuple<Args...> args;
+  Callable callable;
+  std::tuple<Args...> args;
 
 public:
-	task(Callable callable, Args&&... args)
-		:
-		task_info(callable, args...),
-		callable(callable),
-		args(args...)
-	{
-		LOG_DEBUG("task::task()\n");
-	}
+  task(Callable callable, Args &&...args)
+      : task_info(callable, args...), callable(callable), args(args...) {
+    LOG_DEBUG("task::task()\n");
+  }
 
-	virtual ~task()
-	{
-		LOG_DEBUG("task::~task()\n");
-	}
+  virtual ~task() { LOG_DEBUG("task::~task()\n"); }
 
 protected:
-	virtual bool run()
-	{
-		LOG_DEBUG("task::run()...\n");
+  virtual bool run() {
+    LOG_DEBUG("task::run()...\n");
 
-		if constexpr (std::is_void_v<std::invoke_result_t<Callable,Args...>>)
-			std::apply(callable, args);
-		else
-			value = std::apply(callable, args);
+    if constexpr (std::is_void_v<std::invoke_result_t<Callable, Args...>>)
+      std::apply(callable, args);
+    else
+      value = std::apply(callable, args);
 
-		LOG_DEBUG("task::run() done.\n");
+    LOG_DEBUG("task::run() done.\n");
 
-		return true;
-	}
+    return true;
+  }
 };
 
+} // namespace core
 
-}
+using core::task;
+
+} // namespace parallel_f

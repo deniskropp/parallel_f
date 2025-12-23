@@ -12,6 +12,8 @@
 
 namespace parallel_f {
 
+namespace core {
+
 // parallel_f :: task_info == implementation
 
 class task_info : public task_base,
@@ -72,5 +74,9 @@ template <> inline void task_info::DumpArg(Value arg) {
     break;
   }
 }
+
+} // namespace core
+
+using core::task_info;
 
 } // namespace parallel_f
