@@ -5,6 +5,7 @@ SUBDIRS = \
 	test_objects \
 	test_pause \
 	test_queue \
+	test_kicklang_gen \
 	thumbnailer
 
 all:

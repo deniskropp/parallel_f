@@ -1,0 +1,54 @@
+⫻kicklang:header
+# 17-task diamond DAG — KickLang Parallel DAG form of the parallel_f README
+# advanced example. Codegen target: generated_parallel_dag.cpp
+
+meta: {
+  weaver: "parallel_f-kicklang-wrapper",
+  source: "advanced_dependency_example",
+  coherence_target: "high"
+}
+
+⫻block/advanced_dependency_example {
+  tas: {
+    id: "PF-DAG-ADV-001",
+    purpose: "17-task diamond DAG matching parallel_f README advanced example",
+    keywords: ["task_list", "append", "deps", "finish", "stats"]
+  }
+
+  func work = (a) => {
+    log "Function %s..." a
+    sleep 100ms
+    log "Function %s done." a
+  }
+
+  dag = task_list {
+    a1  = append( make_task(work, "running task0") )
+    a2  = append( make_task(work, "running task1") )
+    a3  = append( make_task(work, "running task2") )
+    a4  = append( make_task(work, "running task3") )
+    a5  = append( make_task(work, "running task4"), deps: [a1, a2] )
+    a6  = append( make_task(work, "running task5"), deps: [a2, a3] )
+    a7  = append( make_task(work, "running task6"), deps: [a3, a4] )
+    a8  = append( make_task(work, "running task7"), deps: [a5] )
+    a9  = append( make_task(work, "running task8"), deps: [a6] )
+    a10 = append( make_task(work, "running task9"), deps: [a7] )
+    a11 = append( make_task(work, "running task10"), deps: [a8, a9, a10] )
+    a12 = append( make_task(work, "running task11"), deps: [a8, a9, a10] )
+    a13 = append( make_task(work, "running task12"), deps: [a8, a9, a10] )
+    a14 = append( make_task(work, "running task13"), deps: [a8, a9, a10] )
+    a15 = append( make_task(work, "running task14"), deps: [a8] )
+    a16 = append( make_task(work, "running task15"), deps: [a9] )
+    a17 = append( make_task(work, "running task16"), deps: [a10] )
+  }
+
+  result = dag.finish()
+  stats.show()
+}
+
+⫻cmd/generate_cpp_from_dag {
+  source: "advanced_dependency_example",
+  output_file: "generated_parallel_dag.cpp",
+  include_headers: ["parallel_f.hpp"]
+}
+
+⫻end/kicklang

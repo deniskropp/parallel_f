@@ -1,0 +1,33 @@
+⫻kicklang:header
+# Vision-style pipeline from the wrapper skill: load → detect → nms →
+# track / render, then finish + stats.
+
+⫻block/parallel_vision_example {
+  tas: {
+    id: "PF-DAG-VISION-001",
+    purpose: "KickLang vision DAG delegated to parallel_f task_list",
+    keywords: ["vision", "inference", "deps"]
+  }
+
+  path = "images/"
+  model = "detector.onnx"
+
+  dag = task_list {
+    load   = append( make_task(load_images, path) )
+    detect = append( make_task(run_inference, model), deps: [load] )
+    nms    = append( make_task(non_max_suppression), deps: [detect] )
+    track  = append( make_task(associate_tracks), deps: [nms] )
+    render = append( make_task(draw_overlays), deps: [track] )
+  }
+
+  result = dag.finish()
+  stats.show()
+}
+
+⫻cmd/generate_cpp_from_dag {
+  source: "parallel_vision_example",
+  output_file: "generated_vision.cpp",
+  include_headers: ["parallel_f.hpp"]
+}
+
+⫻end/kicklang

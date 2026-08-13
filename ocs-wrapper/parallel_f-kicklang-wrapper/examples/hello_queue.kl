@@ -1,0 +1,29 @@
+⫻kicklang:header
+# Basic task_queue hello-world — KickLang form of the parallel_f README
+# intro example.
+
+⫻block/hello_queue {
+  tas: {
+    id: "PF-DAG-HELLO-001",
+    purpose: "Single-task task_queue hello world"
+  }
+
+  func say_hello = () => {
+    log "Hello World"
+  }
+
+  tq = task_queue {
+    hello = push( make_task(say_hello) )
+  }
+
+  tq.exec()
+  stats.show()
+}
+
+⫻cmd/generate_cpp_from_dag {
+  source: "hello_queue",
+  output_file: "generated_hello_queue.cpp",
+  include_headers: ["parallel_f.hpp"]
+}
+
+⫻end/kicklang

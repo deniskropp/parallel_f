@@ -1,0 +1,36 @@
+⫻kicklang:header
+# parallel_f_v2 harness (weaver style) — speculative fast-path + quorum join.
+# Cancel is recorded as a TAS comment; parallel_f join maps to task_list.finish().
+
+⫻parallel_f_v2/weaver_generated_harness {
+  meta: {
+    weaver: "parallel-f-hybrid-weaver",
+    coherence_target: "high",
+    consent: "adaptive_quorum"
+  }
+
+  tas: {
+    id: "PF-V2-SPEC-001",
+    purpose: "Speculative fast-path with quorum-1 join"
+  }
+
+  t_fast = make_task { compute_fast_path() }
+  t_heavy = make_task { compute_heavy_analysis() }
+
+  t_fast::run()
+  t_heavy::run()
+
+  cancel_task(t_heavy, "Speculative")
+
+  join([t_fast, t_heavy], { quorum: 1, predicate: any_success_or_cancelled })
+
+  stats.show()
+}
+
+⫻cmd/generate_cpp_from_dag {
+  source: "weaver_generated_harness",
+  output_file: "generated_speculative.cpp",
+  include_headers: ["parallel_f.hpp"]
+}
+
+⫻end/kicklang

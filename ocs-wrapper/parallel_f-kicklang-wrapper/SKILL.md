@@ -1,7 +1,7 @@
 ---
 name: parallel_f-kicklang-wrapper
 description: Thin OCS-compliant wrapper that consumes KickLang v4.2 Parallel DAG syntax (make_task, task_list, append with deps, finish, flush, stats) and delegates execution to the parallel_f C++ library. Provides TAS metadata attachment, CoherenceMonitorBridge integration, consent-gated execution, and C++ code generation from KickLang DAGs.
-version: 0.2.0-ocs
+version: 0.3.0-ocs
 author: OCS Meta-Orchestrator (via ocs-skill-builder + kicklang-meta-playbook)
 tags: [kicklang, parallel_dag, parallel_f, tas, ocs, execution, wrapper, codegen]
 activation_triggers:
@@ -12,7 +12,7 @@ activation_triggers:
   - generate parallel cpp from kicklang
 ---
 
-# parallel_f-kicklang-wrapper (v0.2.0-OCS)
+# parallel_f-kicklang-wrapper (v0.3.0-OCS)
 
 Thin, fully OCS-participant execution bridge between KickLang v4.2 Parallel DAG syntax and the `parallel_f` C++ task-parallel library. Supports runtime delegation **and** C++ code generation from KickLang DAGs.
 
@@ -77,19 +77,45 @@ Generate real, compilable C++ code that uses your existing `parallel_f` headers 
 
 The generated code will look very close to the advanced example from your original `parallel_f` README, but derived automatically from the KickLang DAG.
 
+## C++ Codegen CLI (implemented)
+
+```bash
+# From repo root
+python3 ocs-wrapper/parallel_f-kicklang-wrapper/generate_cpp.py \
+  ocs-wrapper/parallel_f-kicklang-wrapper/examples/advanced_dependency_example.kl \
+  -o test_kicklang_gen/generated_parallel_dag.cpp
+
+# Or generate + compile + run the bundled examples
+make -C test_kicklang_gen run
+
+# Parser / emitter self-test
+python3 ocs-wrapper/parallel_f-kicklang-wrapper/generate_cpp.py --self-test
+```
+
+| File | Role |
+|------|------|
+| `kicklang_dag.py` | Lexer + parser → IR (PF-WRAPPER-TAS-001) |
+| `emit_cpp.py` | IR → `parallel_f` C++ with TAS comments (PF-WRAPPER-TAS-004) |
+| `generate_cpp.py` | CLI (`-o`, `--out-dir`, `--dump-ir`, `--self-test`) |
+| `examples/*.kl` | Advanced 17-task DAG, vision pipeline, hello queue, speculative v2 |
+| `test_kicklang_gen/` | Generated `.cpp` + Makefile (round-trip compile) |
+
+Honors in-source `⫻cmd/generate_cpp_from_dag { source, output_file, include_headers }`.
+Sigil `⫻` accepted as U+2AFB or U+2AFC.
+
 ## Implementation Roadmap (TAS-aligned)
 
-**PF-WRAPPER-TAS-001** — KickLang DAG Parser (KickForge)  
-Robust parsing of `make_task`, `task_list.append(deps)`, `finish`, `flush`, `⫻flow/parallel`.
+**PF-WRAPPER-TAS-001** — KickLang DAG Parser (KickForge) — **done**  
+Robust parsing of `make_task`, `task_list.append(deps)`, `finish`, `flush`, `⫻flow/parallel`, `⫻parallel_f_v2`.
 
-**PF-WRAPPER-TAS-002** — TAS Metadata Attachment  
-Attach full TAS (id, purpose, keywords, applicability) to every generated task node.
+**PF-WRAPPER-TAS-002** — TAS Metadata Attachment — **done (comments)**  
+Attach TAS (id, purpose, node, deps) to every generated task node.
 
 **PF-WRAPPER-TAS-003** — Runtime Translation & Delegation (KickFlow)  
 Map to `parallel_f::task_list` / `make_task` (Python binding or direct call).
 
-**PF-WRAPPER-TAS-004** — C++ Code Generator (KickFlow)  
-Emit complete, compilable `.cpp` + optional `main()` using `parallel_f` headers.
+**PF-WRAPPER-TAS-004** — C++ Code Generator (KickFlow) — **done**  
+Emit complete, compilable `.cpp` + `main()` using `parallel_f` headers.
 
 **PF-WRAPPER-TAS-005** — Coherence & Stats Bridge  
 `stats.show()` → structured data for `CoherenceMonitorBridge`.
@@ -124,13 +150,11 @@ When code generation is invoked on the advanced example, it produces output very
 
 ---
 
-**Skill Status:** v0.2.0-OCS — Now a full OCS participant with code-generation capability. Thin, coherent, and ready for implementation.
+**Skill Status:** v0.3.0-OCS — KickLang DAG parser + C++ codegen implemented. Round-trip: `.kl` → generated `.cpp` → `g++` → `parallel_f` run.
 
 **Coherence:** High | **Drift:** Very Low | **Symbiotic Value:** High (bridges low-level parallel_f with high-level KickLang/OCS meta-infrastructure)
 
-**Next Steps (reply with number(s)):**
-1. Generate the full Python MVP stub + C++ code generator prototype files.
-2. Create dedicated GitHub repo for this wrapper (or push enhanced version).
-3. Activate `meta-report-card-generation` for this evolution cycle.
-4. Integrate into `underbody-inspection-pipeline` or another concrete project.
-5. Add visual diagram of syntax + codegen flow.
+**Next Steps:**
+1. Runtime delegation (PF-WRAPPER-TAS-003) via Python binding or subprocess.
+2. `stats.show()` → CoherenceMonitorBridge structured payload.
+3. Integrate into `underbody-inspection-pipeline` or another concrete project.

@@ -117,3 +117,14 @@ Load '3': 0.587 (3 vthreads)
 Load '4': 0.809 (4 vthreads)
 Load all: 3.368 (17 vthreads), total busy 330.526% (0.570 seconds)
 ```
+
+## KickLang → C++
+
+KickLang Parallel DAG files compile down to `parallel_f` C++ via the OCS wrapper:
+
+```bash
+python3 ocs-wrapper/parallel_f-kicklang-wrapper/generate_cpp.py \
+  ocs-wrapper/parallel_f-kicklang-wrapper/examples/advanced_dependency_example.kl \
+  -o test_kicklang_gen/generated_parallel_dag.cpp
+make -C test_kicklang_gen
+```
