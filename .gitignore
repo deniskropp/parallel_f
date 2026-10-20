@@ -343,3 +343,5 @@ healthchecksdb
 *.exe
 
 node_modules
+generated_gp_parallel
+parallel_f_gp_tree_interpreter
