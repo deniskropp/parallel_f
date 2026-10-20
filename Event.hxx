@@ -56,6 +56,21 @@ private:
   std::mutex handlers_mutex;
 
 public:
+  // task_node owns the task whose finished event it listens to, and members
+  // are destroyed before the event_listener base. Dropping that last
+  // shared_ptr frees this event while the listener set still points at it.
+  // Unregister first so ~event_listener does not detach from freed memory.
+  ~event() {
+    std::unique_lock<std::mutex> lock(handlers_mutex);
+
+    for (auto &handler : handlers) {
+      if (handler.listener)
+        handler.listener->remove_event(this);
+    }
+
+    handlers.clear();
+  }
+
   void attach(event_listener *listener, std::function<void(Args...)> func) {
     std::unique_lock<std::mutex> lock(handlers_mutex);
 
