@@ -1,10 +1,13 @@
-// === (C) 2020 === parallel_f / log (tasks, queues, lists in parallel threads)
+// === (C) 2020-2026 === parallel_f / log (tasks, queues, lists in parallel threads)
 // Written by Denis Oliver Kropp <Leichenbegatter@outlook.com>
 
 #pragma once
 
 #include "system.hpp"
 #include "ustd.hpp"
+
+#include <sstream>
+#include <string>
 
 // parallel_f :: log == implementation
 
@@ -57,11 +60,23 @@ namespace parallel_f {
 
 #define LOG_ERROR(...) parallel_f::log_error(__VA_ARGS__)
 
+// JSONL structured logging support (Task 4.1)
+static inline void log_jsonl(const char* level, const char* message, const char* extra = "") {
+  unsigned int ms = system::localtime_ms();
+  std::stringstream tid;
+  tid << std::this_thread::get_id();
+  std::string json = "{\"ts\":\"" + std::to_string(ms) + "\",\"level\":\"" + level + "\",\"tid\":\"" + tid.str() + "\",\"msg\":\"" + message + "\"";
+  if (extra && extra[0]) json += ",\"extra\":\"" + std::string(extra) + "\"";
+  json += "}\n";
+  system::instance().log("%s", json.c_str());
+}
+
 static inline void log_debug(const char *fmt, ...) {
   if (get_debug_level() == 0 && get_debug_level(fmt) == 0)
     return;
 
   PARALLEL_F__LOG(-);
+  // Optional JSONL redirection point
 }
 
 static inline void log_debug_f(const char *fmt, ...) {
