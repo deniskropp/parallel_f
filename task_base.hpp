@@ -1,4 +1,4 @@
-// === (C) 2020-2024 === parallel_f (tasks, queues, lists in parallel threads)
+// === (C) 2020-2026 === parallel_f (tasks, queues, lists in parallel threads)
 // Written by Denis Oliver Kropp <Leichenbegatter@outlook.com>
 
 #pragma once
@@ -13,6 +13,9 @@ namespace parallel_f {
 namespace core {
 
 // parallel_f :: task_base == implementation
+// Modularization note (Task 1): pure interface candidate for future header split.
+// Lifecycle alignment (parallel_f_v2): CREATED → RUNNING → SUCCESS|FAILURE|CANCELLED
+// Current states map as: CREATED, RUNNING, FINISHED (≈ SUCCESS). CANCELLED reserved for future typed cancel.
 
 /*
  *  This class implements a base class for tasks, that is, objects that
@@ -40,6 +43,11 @@ namespace core {
  *  The `finished` event is dispatched when the task enters the FINISHED
  *  state, and is used by the caller of `finish` to wait for the task to
  *  complete, or to perform some action after the task has completed.
+ *
+ *  Future modular pure interface (to be extracted):
+ *  - virtual bool run() = 0;
+ *  - task_state get_state() const;
+ *  - bool finish();
  */
 class task_base {
 public:
